@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<!--
+  - SPDX-FileCopyrightText: 2026 Hoang Pham
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+	<id>virtualoffice</id>
+	<name>Virtual Office</name>
+	<summary>See who's around, right inside Talk.</summary>
+	<description><![CDATA[Give a Talk group conversation its own little office. Open it from a message menu, share it in chat, and see who's there. Enter as a character and move around without leaving Talk.
+
+Walk over, wave, share a coffee, or ask “got 2 minutes?” before a call. The office shows when a Talk call is running; you can join it from the full office. You can also make offices for Teams and groups. Admins can enable an office for everyone.
+
+Pick a character, claim a desk, or leave a short Today note. Find offices through Talk, Team pages, search, or the Dashboard.
+
+Only members can enter their Team, group, or conversation office. Opening a link does not make you appear there; you choose Enter office. Virtual Office does not keep a history of visits or movement. The admin guide explains what optional features store and when that data is removed.
+
+Requires Nextcloud 35. Talk 25 adds conversation offices and calls. Teams, Deck, and Client Push add other features. Group offices work without them.]]></description>
+	<version>1.2.0</version>
+	<licence>AGPL-3.0-or-later</licence>
+	<author>Hoang Pham</author>
+	<namespace>VirtualOffice</namespace>
+	<documentation>
+		<user>https://github.com/hweihwang/virtualoffice/blob/main/README.md</user>
+		<admin>https://github.com/hweihwang/virtualoffice/blob/main/docs/admin.md</admin>
+		<developer>https://github.com/hweihwang/virtualoffice/blob/main/docs/architecture.md</developer>
+	</documentation>
+	<category>social</category>
+	<category>organization</category>
+	<website>https://github.com/hweihwang/virtualoffice</website>
+	<bugs>https://github.com/hweihwang/virtualoffice/issues</bugs>
+	<repository>https://github.com/hweihwang/virtualoffice</repository>
+	<screenshot>https://raw.githubusercontent.com/hweihwang/virtualoffice/main/docs/screenshots/talk.png</screenshot>
+	<screenshot>https://raw.githubusercontent.com/hweihwang/virtualoffice/main/docs/screenshots/office.png</screenshot>
+	<dependencies>
+		<nextcloud min-version="35" max-version="35"/>
+	</dependencies>
+	<background-jobs>
+		<job>OCA\VirtualOffice\BackgroundJob\ExpirePresence</job>
+		<job>OCA\VirtualOffice\BackgroundJob\PairRoulette</job>
+	</background-jobs>
+	<commands>
+		<command>OCA\VirtualOffice\Command\Purge</command>
+	</commands>
+	<settings>
+		<admin>OCA\VirtualOffice\Settings\Admin</admin>
+		<admin-section>OCA\VirtualOffice\Settings\AdminSection</admin-section>
+	</settings>
+	<navigations>
+		<navigation>
+			<name>Office</name>
+			<route>virtualoffice.page.index</route>
+			<icon>app.svg</icon>
+		</navigation>
+	</navigations>
+</info>

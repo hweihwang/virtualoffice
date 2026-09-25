@@ -1,0 +1,412 @@
+{
+	"schemaVersion": 1,
+	"defaultLayout": "starter-office-v1",
+	"layouts": {
+		"starter-office-v1": {
+			"width": 32,
+			"height": 20,
+			"tileSize": 40,
+			"collision": [
+				"################################",
+				"######....#..#####....#.......##",
+				"#.....................#........#",
+				"#.............###.....#.##..##.#",
+				"#......##.............#........#",
+				"#..............................#",
+				"#..............................#",
+				"#.....................#........#",
+				"#.....................#.##..##.#",
+				"####....###...........#........#",
+				"#...............#.....#........#",
+				"#.....................#........#",
+				"#.....................#........#",
+				"#..............................#",
+				"#..............................#",
+				"#.....................#........#",
+				"#...........#.......#.#.##..##.#",
+				"##....................#........#",
+				"#.......##............#........#",
+				"################################"
+			],
+			"spawn": [
+				[
+					5,
+					17
+				],
+				[
+					3,
+					17
+				],
+				[
+					7,
+					17
+				],
+				[
+					5,
+					15
+				],
+				[
+					3,
+					15
+				],
+				[
+					7,
+					15
+				],
+				[
+					4,
+					13
+				],
+				[
+					6,
+					13
+				],
+				[
+					2,
+					13
+				],
+				[
+					8,
+					13
+				]
+			],
+			"zones": [
+				{
+					"id": "entrance",
+					"rect": [
+						1,
+						9,
+						10,
+						10
+					]
+				},
+				{
+					"id": "coffee",
+					"rect": [
+						1,
+						1,
+						10,
+						8
+					]
+				},
+				{
+					"id": "common",
+					"rect": [
+						11,
+						1,
+						12,
+						18
+					]
+				},
+				{
+					"id": "focus",
+					"rect": [
+						23,
+						1,
+						8,
+						18
+					]
+				}
+			],
+			"zoneAnchors": {
+				"entrance": [
+					5,
+					14
+				],
+				"coffee": [
+					5,
+					5
+				],
+				"common": [
+					16,
+					13
+				],
+				"focus": [
+					26,
+					11
+				]
+			},
+			"props": [
+				{
+					"id": "coffee",
+					"cell": [
+						3,
+						1
+					],
+					"zone": "coffee",
+					"radius": 1.5,
+					"durationMs": 2000
+				},
+				{
+					"id": "plant",
+					"cell": [
+						16,
+						10
+					],
+					"zone": "common",
+					"radius": 1.5,
+					"durationMs": 2000
+				}
+			],
+			"desks": [
+				{
+					"id": "d1",
+					"cell": [
+						24,
+						4
+					]
+				},
+				{
+					"id": "d2",
+					"cell": [
+						25,
+						4
+					]
+				},
+				{
+					"id": "d3",
+					"cell": [
+						28,
+						4
+					]
+				},
+				{
+					"id": "d4",
+					"cell": [
+						29,
+						4
+					]
+				},
+				{
+					"id": "d5",
+					"cell": [
+						24,
+						9
+					]
+				},
+				{
+					"id": "d6",
+					"cell": [
+						25,
+						9
+					]
+				},
+				{
+					"id": "d7",
+					"cell": [
+						28,
+						9
+					]
+				},
+				{
+					"id": "d8",
+					"cell": [
+						29,
+						9
+					]
+				},
+				{
+					"id": "d9",
+					"cell": [
+						24,
+						17
+					]
+				},
+				{
+					"id": "d10",
+					"cell": [
+						25,
+						17
+					]
+				},
+				{
+					"id": "d11",
+					"cell": [
+						28,
+						17
+					]
+				},
+				{
+					"id": "d12",
+					"cell": [
+						29,
+						17
+					]
+				}
+			],
+			"fixtures": [
+				{
+					"id": "f1",
+					"cell": [
+						11,
+						0
+					]
+				},
+				{
+					"id": "f2",
+					"cell": [
+						12,
+						0
+					]
+				},
+				{
+					"id": "f3",
+					"cell": [
+						18,
+						0
+					]
+				},
+				{
+					"id": "f4",
+					"cell": [
+						19,
+						0
+					]
+				},
+				{
+					"id": "f5",
+					"cell": [
+						20,
+						0
+					]
+				},
+				{
+					"id": "f6",
+					"cell": [
+						21,
+						0
+					]
+				}
+			]
+		}
+	},
+	"creatures": [
+		"rabbit",
+		"cat",
+		"bear",
+		"bird"
+	],
+	"palettes": [
+		{
+			"id": "sage",
+			"body": "#9dbf9e",
+			"belly": "#eef5ea"
+		},
+		{
+			"id": "peach",
+			"body": "#f4b69c",
+			"belly": "#fdebe2"
+		},
+		{
+			"id": "sky",
+			"body": "#9cc8eb",
+			"belly": "#e7f3fc"
+		},
+		{
+			"id": "lilac",
+			"body": "#c3a9e0",
+			"belly": "#f3ecfa"
+		},
+		{
+			"id": "butter",
+			"body": "#f1d174",
+			"belly": "#fdf6dc"
+		},
+		{
+			"id": "rose",
+			"body": "#efa3b8",
+			"belly": "#fde8ee"
+		},
+		{
+			"id": "cocoa",
+			"body": "#b98b6e",
+			"belly": "#f1e2d3"
+		},
+		{
+			"id": "slate",
+			"body": "#a3aebd",
+			"belly": "#e9edf2"
+		}
+	],
+	"accessories": [
+		"none",
+		"scarf",
+		"glasses",
+		"flower",
+		"beanie"
+	],
+	"emotes": [
+		{
+			"id": "wave",
+			"durationMs": 4000
+		},
+		{
+			"id": "heart",
+			"durationMs": 4000
+		},
+		{
+			"id": "laugh",
+			"durationMs": 4000
+		},
+		{
+			"id": "celebrate",
+			"durationMs": 4000
+		}
+	],
+	"modes": [
+		"available",
+		"focus",
+		"away"
+	],
+	"decor": {
+		"floor": {
+			"default": "oak",
+			"options": [
+				"oak",
+				"mint",
+				"lavender",
+				"slate"
+			]
+		},
+		"rug": {
+			"default": "sunrise",
+			"options": [
+				"sunrise",
+				"ocean",
+				"meadow",
+				"none"
+			]
+		},
+		"wallArt": {
+			"default": "mountains",
+			"options": [
+				"mountains",
+				"cat",
+				"abstract",
+				"none"
+			]
+		},
+		"lights": {
+			"default": "warm",
+			"options": [
+				"warm",
+				"none"
+			]
+		}
+	},
+	"defaults": {
+		"appearance": {
+			"creature": "rabbit",
+			"palette": "sage",
+			"accessory": "none"
+		}
+	},
+	"movement": {
+		"msPerEdge": 250,
+		"maxPathEdges": 64
+	},
+	"limits": {
+		"roomCapacity": 32,
+		"serviceCapacity": 320
+	}
+}

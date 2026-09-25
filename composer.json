@@ -1,0 +1,43 @@
+{
+	"name": "nextcloud/virtualoffice",
+	"description": "A cozy shared office where Nextcloud teams appear as cute characters",
+	"license": "AGPL-3.0-or-later",
+	"type": "project",
+	"require": {
+		"php": "^8.3"
+	},
+	"require-dev": {
+		"doctrine/dbal": "3.10.4",
+		"nextcloud/coding-standard": "1.5.0",
+		"nextcloud/ocp": "35.0.0",
+		"phpunit/phpunit": "12.5.35",
+		"psalm/phar": "6.18.0",
+		"symfony/console": "^7.4"
+	},
+	"autoload": {
+		"psr-4": {
+			"OCA\\VirtualOffice\\": "lib/"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"OCA\\VirtualOffice\\Tests\\": "tests/php/",
+			"OCP\\": "vendor/nextcloud/ocp/OCP/",
+			"NCU\\": "vendor/nextcloud/ocp/NCU/"
+		}
+	},
+	"config": {
+		"optimize-autoloader": true,
+		"sort-packages": true,
+		"platform": {
+			"php": "8.3.0"
+		}
+	},
+	"scripts": {
+		"lint": "find lib tests/php templates -name '*.php' -print0 | xargs -0 -n1 php -l",
+		"cs:check": "php-cs-fixer fix --dry-run --diff",
+		"cs:fix": "php-cs-fixer fix",
+		"psalm": "psalm.phar --no-cache --threads=1",
+		"test:unit": "phpunit -c tests/php/phpunit.xml"
+	}
+}

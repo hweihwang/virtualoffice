@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Hoang Pham
+# SPDX-License-Identifier: AGPL-3.0-or-later
+/node_modules/
+/vendor/
+/js/
+/css/
+/build/
+/test-results/
+/playwright-report/
+.php-cs-fixer.cache
+.DS_Store
+.phpunit.result.cache

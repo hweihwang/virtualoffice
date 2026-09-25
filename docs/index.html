@@ -1,0 +1,136 @@
+<!doctype html>
+<!--
+  - SPDX-FileCopyrightText: 2026 Hoang Pham
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="theme-color" content="#f5f9fc">
+	<meta name="description" content="Give a Talk group conversation its own little office. See who's there, enter as a character, and say hi without leaving the chat.">
+	<meta property="og:type" content="website">
+	<meta property="og:title" content="Virtual Office — See who's around, right inside Talk.">
+	<meta property="og:description" content="A little office for Talk conversations, Teams, and groups.">
+	<meta property="og:url" content="https://hweihwang.github.io/virtualoffice/">
+	<meta property="og:image" content="https://hweihwang.github.io/virtualoffice/media/social-preview.png">
+	<meta name="twitter:card" content="summary_large_image">
+	<link rel="canonical" href="https://hweihwang.github.io/virtualoffice/">
+	<link rel="icon" href="media/app.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="site.css">
+	<title>Virtual Office — See who's around, right inside Talk.</title>
+</head>
+<body>
+	<a class="skip-link" href="#main">Skip to content</a>
+	<header class="site-header">
+		<a class="brand" href="#top" aria-label="Virtual Office home">
+			<img src="media/app.svg" alt="" width="34" height="34">
+			<span>Virtual Office</span>
+		</a>
+		<nav aria-label="Main navigation">
+			<a href="#talk">In Talk</a>
+			<a href="#how-it-works">How it works</a>
+			<a href="https://github.com/hweihwang/virtualoffice">Source code</a>
+		</nav>
+	</header>
+
+	<main id="main">
+		<section class="hero wrap" id="top" aria-labelledby="hero-title">
+			<div class="hero__copy">
+				<p class="eyebrow">A little office for Talk conversations</p>
+				<h1 id="hero-title">See who's around.<br>Right inside Talk.</h1>
+				<p class="hero__lead">Give a Talk group conversation its own office. Step in as a character, walk over to say hi, and wave or share a coffee without leaving the chat.</p>
+				<div class="actions">
+					<a class="button button--primary" href="https://apps.nextcloud.com/apps/virtualoffice">Get Virtual Office <span aria-hidden="true">↗</span></a>
+					<a class="button button--secondary" href="https://github.com/hweihwang/virtualoffice">View on GitHub</a>
+				</div>
+				<p class="hero__requirement">For Nextcloud 35. Free and open source.</p>
+			</div>
+			<figure class="hero__figure">
+				<picture>
+					<source media="(max-width: 760px)" srcset="media/office-mobile.png">
+					<img src="screenshots/office.png" alt="Three colleagues as small characters in The Studio office, with a coffee corner, common room, and focus desks" width="1440" height="900">
+				</picture>
+				<figcaption>The Studio, with three people inside.</figcaption>
+			</figure>
+		</section>
+
+		<section class="section wrap talk" id="talk" aria-labelledby="talk-title">
+			<div class="talk__copy">
+				<p class="eyebrow">Inside Talk</p>
+				<h2 id="talk-title">Your conversation has a place to meet.</h2>
+				<p>Open the office from a message menu. Share it in chat, see who's there, and enter right in the conversation.</p>
+				<p>When a call starts, the office shows who's in it. Open the full office to join.</p>
+			</div>
+			<figure class="talk__figure">
+				<img src="screenshots/talk.png" alt="A Talk conversation showing its interactive Virtual Office card" width="1121" height="848" loading="lazy">
+			</figure>
+		</section>
+
+		<section class="section section--white" id="how-it-works" aria-labelledby="how-title">
+			<div class="wrap">
+				<div class="section-heading">
+					<p class="eyebrow">What happens inside</p>
+					<h2 id="how-title">What you can do together.</h2>
+				</div>
+				<div class="feature-grid">
+					<article class="feature">
+						<span class="feature__number">01</span>
+						<h3>Know who's here</h3>
+						<p>See the people in your office and walk over to them. Nobody appears just because they opened a link.</p>
+					</article>
+					<article class="feature">
+						<span class="feature__number">02</span>
+						<h3>Find a small moment</h3>
+						<p>Wave, make coffee, focus together, or knock to ask “got 2 minutes?” before a call.</p>
+					</article>
+					<article class="feature">
+						<span class="feature__number">03</span>
+						<h3>Stay close to work</h3>
+						<p>Offices also work for Teams and groups. Open them from Team pages, search, or the Dashboard. Team rooms show shared boards and folders.</p>
+					</article>
+				</div>
+			</div>
+		</section>
+
+		<section class="section section--white demo" aria-labelledby="demo-title">
+			<div class="wrap demo__inner">
+				<div class="section-heading">
+					<p class="eyebrow">See it in motion</p>
+					<h2 id="demo-title">A quick look around.</h2>
+					<p>Recorded in a running Nextcloud instance with test accounts.</p>
+				</div>
+				<video controls preload="metadata" poster="media/demo-poster.jpg" aria-label="Virtual Office product demo">
+					<source src="media/demo.mp4" type="video/mp4">
+					<track kind="captions" src="media/demo.vtt" srclang="en" label="English" default>
+					<a href="media/demo.mp4">Download the demo video</a>.
+				</video>
+			</div>
+		</section>
+
+		<section class="section wrap details" aria-labelledby="details-title">
+			<div>
+				<p class="eyebrow">Good to know</p>
+				<h2 id="details-title">You decide when you're there.</h2>
+				<p>Opening an office does not place you inside. Access follows the Team, group, or conversation. Virtual Office does not keep a history of visits or movement.</p>
+				<p>Desks, Today notes, knocks, and other optional features keep the data they need. The <a href="https://github.com/hweihwang/virtualoffice/blob/main/docs/admin.md#privacy">admin guide</a> explains when it is removed.</p>
+			</div>
+			<aside class="requirements" aria-label="Requirements">
+				<h3>What you need</h3>
+				<p><strong>Nextcloud 35</strong> is required. Group offices work without other apps.</p>
+				<p>Teams adds Team offices. Talk 25 adds conversation offices and calls. Deck adds due cards on Team boards. Client Push makes updates faster.</p>
+			</aside>
+		</section>
+	</main>
+
+	<footer class="site-footer">
+		<div class="wrap site-footer__inner">
+			<span>Virtual Office · AGPL-3.0-or-later</span>
+			<div>
+				<a href="https://github.com/hweihwang/virtualoffice">Source</a>
+				<a href="https://github.com/hweihwang/virtualoffice/issues">Help and feedback</a>
+			</div>
+		</div>
+	</footer>
+</body>
+</html>
