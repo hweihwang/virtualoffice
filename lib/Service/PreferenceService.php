@@ -113,6 +113,16 @@ class PreferenceService {
 		return $note;
 	}
 
+	/** Deletes "Today" notes that have expired, so none outlives its day. */
+	public function expireToday(int $now): void {
+		foreach ($this->userConfig->getValuesByUsers(Application::APP_ID, 'today') as $uid => $value) {
+			$note = is_string($value) ? json_decode($value, true) : null;
+			if (!is_array($note) || !is_int($note['expiresAt'] ?? null) || $note['expiresAt'] <= $now) {
+				$this->userConfig->deleteUserConfig((string)$uid, Application::APP_ID, 'today');
+			}
+		}
+	}
+
 	public function reset(string $uid): void {
 		$this->userConfig->deleteUserConfig($uid, Application::APP_ID, 'preferences');
 		$this->userConfig->deleteUserConfig($uid, Application::APP_ID, 'revision');

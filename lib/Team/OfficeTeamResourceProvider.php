@@ -43,7 +43,8 @@ class OfficeTeamResourceProvider implements ITeamResourceProvider {
 
 	#[\Override]
 	public function getIconSvg(): string {
-		return (string)file_get_contents(__DIR__ . '/../../img/app-dark.svg');
+		// Drawn in the text colour, so it fits light and dark themes.
+		return str_replace('#000', 'currentColor', (string)file_get_contents(__DIR__ . '/../../img/app-dark.svg'));
 	}
 
 	#[\Override]

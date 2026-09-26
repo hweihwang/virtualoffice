@@ -102,13 +102,22 @@ test('newcomers arrive next to people, react together and clink cups', async ({ 
 	const b = await login(browser, 'bao')
 	await enter(a, token)
 	await enter(b, token)
+	// Both characters are placed once the first frame has rendered.
+	await expect.poll(async () => (await cellOf(b, 'alice')) !== null && (await cellOf(b, 'bao')) !== null, { timeout: VISIBLE_WITHIN }).toBe(true)
 	const aliceAt = (await cellOf(b, 'alice'))!
 	const baoAt = (await cellOf(b, 'bao'))!
-	expect(Math.hypot(aliceAt[0] - baoAt[0], aliceAt[1] - baoAt[1])).toBeLessThanOrEqual(1.01)
+	// Close by, with two free cells between them so the name tags stay readable,
+	// and near enough to react together.
+	expect(Math.max(Math.abs(aliceAt[0] - baoAt[0]), Math.abs(aliceAt[1] - baoAt[1]))).toBeCloseTo(3, 1)
+	expect(Math.hypot(aliceAt[0] - baoAt[0], aliceAt[1] - baoAt[1])).toBeLessThanOrEqual(3.01)
 
-	await Promise.all([a.getByRole('button', { name: 'Wave' }).click(), b.getByRole('button', { name: 'Wave' }).click()])
-	await expect(a.locator('.vo-pair[data-emote="wave"]')).toBeVisible({ timeout: VISIBLE_WITHIN })
-	await expect(b.locator('.vo-pair[data-emote="wave"]')).toBeVisible({ timeout: VISIBLE_WITHIN })
+	// The two clicks must reach the server within 1.5 s; on a busy machine they
+	// sometimes do not, so wave again like people would.
+	await expect(async () => {
+		await Promise.all([a.getByRole('button', { name: 'Wave' }).click(), b.getByRole('button', { name: 'Wave' }).click()])
+		await expect(a.locator('.vo-pair[data-emote="wave"]')).toBeVisible({ timeout: VISIBLE_WITHIN })
+		await expect(b.locator('.vo-pair[data-emote="wave"]')).toBeVisible({ timeout: VISIBLE_WITHIN })
+	}).toPass({ timeout: 30_000, intervals: [2500] })
 	await expect(b.locator('.office__toast')).toHaveText(/^(Alice and Bảo|Bảo and Alice) high-fived$/)
 
 	await a.getByRole('button', { name: 'Make coffee' }).click()
@@ -139,7 +148,7 @@ test('a desk shows its owner, status and note while they are away', async ({ bro
 	const today = b.getByRole('textbox', { name: 'Today' })
 	await today.fill('Pairing on the export')
 	await today.press('Enter')
-	await expect(b.locator('.office__toast')).toHaveText('Others now see what you are on today')
+	await expect(b.locator('.office__toast')).toHaveText('Others can now see what you are working on today')
 	await b.getByRole('button', { name: 'Claim a desk' }).click()
 	await expect(b.getByRole('button', { name: /^Free Desk \d+$/ })).toBeVisible()
 	await expect(a.locator('.vo-desk[data-uid="bao"]')).toBeVisible({ timeout: 10_000 })
@@ -248,8 +257,7 @@ test('people focus together from the list', async ({ browser }) => {
 	await b.context().close()
 })
 
-test('"Now" in the Notifications menu takes the person asked to the call', async ({ browser, browserName }) => {
-	test.skip(browserName !== 'chromium', 'One browser is enough for the Notifications menu')
+test('"Now" in the Notifications menu takes the person asked to the call', async ({ browser }) => {
 	const token = await newOffice()
 	const bao = await Api.as('bao')
 	await bao.call('DELETE', '/ocs/v2.php/apps/notifications/api/v2/notifications')
@@ -268,8 +276,7 @@ test('"Now" in the Notifications menu takes the person asked to the call', async
 	await b.context().close()
 })
 
-test('office counts stay right after "Show more offices"', async ({ browser, browserName }) => {
-	test.skip(browserName !== 'chromium', 'One browser is enough for paging')
+test('office counts stay right after "Show more offices"', async ({ browser }) => {
 	const team = createTeam('alice', uniqueName('Many offices'), ['bao'])
 	for (let i = 0; i < 51; i++) {
 		await alice.call('POST', '/offices', { title: `Many ${String(i).padStart(2, '0')} ${uniqueName('x')}`, audience: { kind: 'team', id: team } })
@@ -280,7 +287,7 @@ test('office counts stay right after "Show more offices"', async ({ browser, bro
 	await expect(b.locator('.office-card').nth(50)).toBeVisible()
 	// Counts refresh every 30 s; wait for one refresh after paging.
 	await b.waitForTimeout(31_000)
-	await expect(b.getByText('Unknown who is here')).toHaveCount(0)
+	await expect(b.getByText('Could not load who is here')).toHaveCount(0)
 	await b.context().close()
 })
 

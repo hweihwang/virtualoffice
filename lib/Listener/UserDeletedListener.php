@@ -22,7 +22,7 @@ use OCP\User\Events\UserDeletedEvent;
 
 /**
  * Ends the presence of deleted or disabled accounts right away and drops
- * their attribution, desks, knocks, arrival requests, roulette sign-ups and manager roles when deleted. Preferences are user
+ * their attribution, desks, knocks, arrival requests, roulette sign-ups, manager roles and removals when deleted. Preferences are user
  * config, which core removes with the account.
  *
  * @template-implements IEventListener<UserDeletedEvent|UserChangedEvent>
@@ -56,7 +56,7 @@ class UserDeletedListener implements IEventListener {
 		$this->knocks->forgetUser($uid);
 		$this->watches->forgetUser($uid);
 		$this->roulette->forgetUser($uid);
-		foreach ($this->mapper->findWithManager($uid) as $office) {
+		foreach ($this->mapper->findWithManagerOrRemoval($uid) as $office) {
 			$office->setManagers(json_encode(array_values(array_diff($office->getManagerList(), [$uid])), JSON_THROW_ON_ERROR));
 			$removals = $office->getRemovalMap();
 			unset($removals[$uid]);

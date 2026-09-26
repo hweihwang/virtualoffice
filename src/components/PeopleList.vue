@@ -63,7 +63,7 @@ const myDesk = computed(() => props.session.myDesk)
 
 async function claimDesk() {
 	if (!await props.session.claimNearestDesk()) {
-		emit('feedback', t('virtualoffice', 'Every desk is taken.'))
+		emit('feedback', t('virtualoffice', 'Every desk is taken'))
 	}
 }
 
@@ -84,14 +84,14 @@ function directCallUrl(uid: string): string {
 
 function goTo(zone: string) {
 	if (!props.session.walkToZone(zone)) {
-		emit('feedback', t('virtualoffice', 'You are already there.'))
+		emit('feedback', t('virtualoffice', 'You are already there'))
 	}
 }
 
 function useProp(id: string) {
 	const outcome = props.session.useProp(id)
 	if (outcome === 'unreachable') {
-		emit('feedback', t('virtualoffice', 'That cannot be reached from here.'))
+		emit('feedback', t('virtualoffice', 'That cannot be reached from here'))
 	}
 }
 </script>
@@ -129,7 +129,7 @@ function useProp(id: string) {
 						<CreaturePreview class="person__creature" :appearance="person.appearance" :size="22" />
 					</span>
 					<span class="person__text">
-						<span class="person__name">{{ person.name }}<template v-if="person.isYou"> ({{ t('virtualoffice', 'you') }})</template></span>
+						<span class="person__name"><template v-if="person.isYou">{{ t('virtualoffice', '{name} (you)', { name: person.name }) }}</template><template v-else>{{ person.name }}</template></span>
 						<span class="person__mode" :data-mode="person.mode">
 							{{ modeLabel(person.mode) }}<template v-if="inCall?.includes(person.uid)"> · {{ t('virtualoffice', 'In the call') }}</template><template v-if="statusText(person.status)"> · {{ statusText(person.status) }}</template><template v-if="person.focusing"> · {{ t('virtualoffice', 'Focusing together') }}</template><template v-if="person.birthday"> · 🎈 {{ t('virtualoffice', 'Birthday today') }}</template>
 						</span>

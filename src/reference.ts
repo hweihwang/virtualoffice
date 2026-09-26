@@ -5,7 +5,7 @@
 import type { OfficeCard } from './api.ts'
 
 import { getRequestToken } from '@nextcloud/auth'
-import { n, t } from '@nextcloud/l10n'
+import { getCanonicalLocale, n, t } from '@nextcloud/l10n'
 import { generateOcsUrl, generateUrl, imagePath } from '@nextcloud/router'
 
 type RenderCallback = (el: HTMLElement, options: { richObject: Record<string, unknown>, interactive: boolean }) => void
@@ -48,7 +48,7 @@ async function fetchCard(token: string, signal: AbortSignal): Promise<OfficeCard
 }
 
 function peopleText(card: OfficeCard): string {
-	const time = new Date(card.observedAt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+	const time = new Date(card.observedAt * 1000).toLocaleTimeString(getCanonicalLocale(), { hour: 'numeric', minute: '2-digit' })
 	if (card.count === 0) {
 		return t('virtualoffice', 'Nobody there at {time}', { time })
 	}
@@ -74,7 +74,7 @@ function render(el: HTMLElement, token: string, url: string, interactive: boolea
 	const body = document.createElement('div')
 	body.className = 'vo-card__body'
 	const title = document.createElement('strong')
-	title.textContent = t('virtualoffice', 'Virtual office')
+	title.textContent = t('virtualoffice', 'Virtual Office')
 	const meta = document.createElement('span')
 	meta.className = 'vo-card__meta'
 	meta.textContent = t('virtualoffice', 'Loading…')
@@ -162,7 +162,6 @@ style.textContent = `
 .vo-card__call:not(:empty) { color: var(--color-success-text); font-weight: 600; }
 .vo-card__open { color: var(--color-primary-element); font-weight: 600; }
 .vo-card__embed { padding: 0 10px 10px; }
-.icon-virtualoffice { background-image: url(${imagePath('virtualoffice', 'app-dark.svg')}); background-size: 16px; }
-[data-theme-dark] .icon-virtualoffice, [data-theme-dark-highcontrast] .icon-virtualoffice { background-image: url(${imagePath('virtualoffice', 'app.svg')}); }
+.icon-virtualoffice { background-image: url(${imagePath('virtualoffice', 'app-dark.svg')}); background-size: 16px; filter: var(--background-invert-if-dark); }
 `
 document.head.append(style)

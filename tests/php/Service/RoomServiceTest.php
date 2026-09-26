@@ -283,13 +283,14 @@ class RoomServiceTest extends TestCase {
 		$cell = $this->spawnAmong([[26, 11], [16, 13], [27, 11]]);
 		$this->assertNotContains($cell, [[26, 11], [27, 11]]);
 		$this->assertSame('focus', (new Catalog())->zoneAt((new Catalog())->layout('starter-office-v1'), $cell[0], $cell[1]));
-		$this->assertLessThanOrEqual(1, min(abs($cell[0] - 26) + abs($cell[1] - 11), abs($cell[0] - 27) + abs($cell[1] - 11)));
+		$this->assertSame(3, min(max(abs($cell[0] - 26), abs($cell[1] - 11)), max(abs($cell[0] - 27), abs($cell[1] - 11))));
 	}
 
 	public function testNewcomersArriveNextToAPersonAwayFromTheZoneCentre(): void {
 		// Alice stands at the far edge of the coffee corner, not at its centre (5,5).
 		$cell = $this->spawnAmong([[9, 7]]);
-		$this->assertSame(1, abs($cell[0] - 9) + abs($cell[1] - 7));
+		// Close to her with two free cells between, so the name tags do not overlap.
+		$this->assertSame(3, max(abs($cell[0] - 9), abs($cell[1] - 7)));
 	}
 
 	public function testANewNoteShowsAtOnceInTheOfficeOfThePerson(): void {

@@ -37,6 +37,6 @@ class ClientPushCheck implements ISetupCheck {
 		if ($this->push->isAvailable()) {
 			return SetupResult::success($this->l10n->t('Movement is delivered instantly through Client Push.'));
 		}
-		return SetupResult::info($this->l10n->t('Virtual Office works, but browsers poll about once a second for updates. Set up Client Push (notify_push) so movement appears instantly and busy offices put less load on the server.'));
+		return SetupResult::info($this->l10n->t('Offices work without Client Push, but browsers check for updates about once a second. Set up Client Push (notify_push) so movement appears instantly and busy offices put less load on the server.'));
 	}
 }

@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import type { OfficeDefinition } from '../types.ts'
 
-import { t } from '@nextcloud/l10n'
+import { getCanonicalLocale, t } from '@nextcloud/l10n'
 import { computed, onMounted, ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
@@ -122,7 +122,7 @@ async function destroy() {
 	}
 }
 
-const untilText = (until: number) => new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+const untilText = (until: number) => new Date(until).toLocaleTimeString(getCanonicalLocale(), { hour: 'numeric', minute: '2-digit' })
 
 onMounted(async () => {
 	if (isTeam.value) {
@@ -259,7 +259,7 @@ onMounted(async () => {
 		<section class="settings__section">
 			<h3>{{ t('virtualoffice', 'Delete office') }}</h3>
 			<p class="settings__hint">
-				{{ t('virtualoffice', 'Everyone inside is taken out and the office cannot be restored.') }}
+				{{ t('virtualoffice', 'Everyone inside has to leave, and the office cannot be restored.') }}
 			</p>
 			<NcButton v-if="!confirmDelete" variant="error" @click="confirmDelete = true">
 				{{ t('virtualoffice', 'Delete office') }}

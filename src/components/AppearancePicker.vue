@@ -49,7 +49,7 @@ const draft = ref<Appearance>({ ...props.appearance })
 				</div>
 			</fieldset>
 			<fieldset>
-				<legend>{{ t('virtualoffice', 'Colour') }}</legend>
+				<legend>{{ t('virtualoffice', 'Color') }}</legend>
 				<div class="picker__choices">
 					<label
 						v-for="palette in catalog.palettes"

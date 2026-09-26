@@ -108,7 +108,7 @@ onMounted(async () => {
 						{{ t('virtualoffice', 'Pin it at the top of the chat') }}
 					</NcCheckboxRadioSwitch>
 					<NcButton variant="primary" :disabled="sharing" @click="shareAndOpen">
-						{{ t('virtualoffice', 'Open the office') }}
+						{{ t('virtualoffice', 'Open office') }}
 					</NcButton>
 				</div>
 			</template>

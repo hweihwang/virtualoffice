@@ -1,6 +1,6 @@
 {
-	"name": "nextcloud/virtualoffice",
-	"description": "A cozy shared office where Nextcloud teams appear as cute characters",
+	"name": "hweihwang/virtualoffice",
+	"description": "A small shared office in Nextcloud. See who's around and drop by.",
 	"license": "AGPL-3.0-or-later",
 	"type": "project",
 	"require": {

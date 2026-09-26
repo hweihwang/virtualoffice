@@ -113,7 +113,7 @@ class OfficesWidget implements IAPIWidgetV2, IIconWidget, IReloadableWidget, IBu
 					$office->getToken(),
 				)];
 			} elseif (in_array($office->getId(), $deskOffices, true)) {
-				$mine[] = new WidgetItem($office->getTitle(), $this->l->t('Nobody there yet · your desk'), $link, $this->getIconUrl(), $office->getToken());
+				$mine[] = new WidgetItem($office->getTitle(), $this->l->t('Nobody there yet. You have a desk here.'), $link, $this->getIconUrl(), $office->getToken());
 			}
 		}
 		usort($busy, static fn (array $a, array $b) => $b[0] <=> $a[0]);

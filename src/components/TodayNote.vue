@@ -32,7 +32,7 @@ async function save() {
 		const result = await api.setToday(value, endOfDay())
 		saved = result.today?.text ?? ''
 		text.value = saved
-		emit('feedback', saved ? t('virtualoffice', 'Others now see what you are on today') : t('virtualoffice', 'Note removed'))
+		emit('feedback', saved ? t('virtualoffice', 'Others can now see what you are working on today') : t('virtualoffice', 'Note removed'))
 	} catch {
 		emit('feedback', t('virtualoffice', 'Could not save the note'))
 	}
@@ -56,7 +56,7 @@ onMounted(async () => {
 		v-model="text"
 		class="today"
 		:label="t('virtualoffice', 'Today')"
-		:placeholder="t('virtualoffice', 'What are you on today?')"
+		:placeholder="t('virtualoffice', 'What are you working on today?')"
 		:maxlength="MAX_LENGTH"
 		:helperText="t('virtualoffice', 'Shown with your character and desk until the end of the day')"
 		@keydown.enter.prevent="save"

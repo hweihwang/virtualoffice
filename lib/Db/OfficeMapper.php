@@ -134,12 +134,16 @@ class OfficeMapper extends QBMapper {
 		return $this->findEntities($qb);
 	}
 
-	/** @return list<Office> */
-	public function findWithManager(string $uid): array {
+	/** @return list<Office> offices where the person is a manager or currently removed */
+	public function findWithManagerOrRemoval(string $uid): array {
+		$needle = '%' . $this->db->escapeLikeParameter(json_encode($uid)) . '%';
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')->from($this->getTableName())
-			->where($qb->expr()->like('managers', $qb->createNamedParameter('%' . $this->db->escapeLikeParameter(json_encode($uid)) . '%')));
-		return array_values(array_filter($this->findEntities($qb), static fn (Office $o) => in_array($uid, $o->getManagerList(), true)));
+			->where($qb->expr()->orX(
+				$qb->expr()->like('managers', $qb->createNamedParameter($needle)),
+				$qb->expr()->like('removals', $qb->createNamedParameter($needle)),
+			));
+		return array_values(array_filter($this->findEntities($qb), static fn (Office $o) => in_array($uid, $o->getManagerList(), true) || array_key_exists($uid, $o->getRemovalMap())));
 	}
 
 	/**

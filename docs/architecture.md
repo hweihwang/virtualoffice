@@ -16,7 +16,7 @@
 
 **The office row is the lock.** Every change runs in a transaction that first increments the office's presence revision. That takes the row's write lock on PostgreSQL, MySQL, MariaDB and SQLite, so capacity, ownership and movement for one office are decided one at a time. Unique indexes back this up: one presence per user (`uid_key`) and one per slot (`office_id, slot`).
 
-**Arriving next to people.** A new presence starts on the free cell nearest to one of the people in the zone with the most people, or at the coffee corner in an empty office. Reacting together and clinking cups are derived on every client from state everyone already has (same reaction within 1.5 s and at most 3 cells apart; two or more people at the running coffee machine), so they need no extra requests or storage.
+**Arriving close to people.** A new presence starts on the free cell nearest to one of the people in the zone with the most people, or at the coffee corner in an empty office. A character reaches above its cell and its name tag below and to the sides, so the two cells around everyone count as taken, both here and when the client picks a spot in a zone or at a prop. Reacting together and clinking cups are derived on every client from state everyone already has (same reaction within 1.5 s and at most 3 cells apart; two or more people at the running coffee machine), so they need no extra requests or storage.
 
 **Current state only.** `vo_presence` holds people who are inside now. There is no history table.
 
@@ -44,14 +44,14 @@ Talk has no public API for a tab in the conversation sidebar or for status in th
 
 | Table | Content |
 |---|---|
-| `vo_offices` | token, audience (kind, id, hashed key), title, decor and Talk link, Talk token, managers, temporary removals, prop and call state, config and presence revisions |
-| `vo_presence` | office, slot, user, session, generation, name, appearance, mode, current path, current reaction, "Today" note, birthday (month and day, when shared), lease and authorization deadlines |
+| `vo_offices` | token, audience (kind, id, hashed key), creator, title, decor and Talk link, Talk token, managers, temporary removals, prop and call state, config and presence revisions |
+| `vo_presence` | office, slot, user, session, generation, entry time, name, appearance, mode, current path, current reaction, "Today" note, birthday (month and day, when shared), lease and authorization deadlines |
 | `vo_desks` | office, desk, owner, when it was claimed, access check deadline |
 | `vo_knocks` | office, who knocked on whom, when; deleted on answer or after 30 minutes |
 | `vo_roulette` | office, who joined, their most recent partner |
 | `vo_watches` | office, who asked to be told about the next arrival, until when; deleted when it fires or expires |
 
-Preferences (character and view choices) and the "Today" note are ordinary per-user app config, which Nextcloud removes with the account.
+Preferences (character and view choices) and the "Today" note are ordinary per-user app config, which Nextcloud removes with the account. `ExpirePresence` deletes expired notes.
 
 **Knocks.** A knock creates a Nextcloud notification for the person asked. In 10 minutes and Later are POST actions on `/knocks/{id}?answer=…`. Notifications ignores what a POST action returns, so Now is a web link to the office page with `?knock=…&answer=now`, which answers and continues to the call. The answer is a notification for the knocker; Now links both to a one-to-one Talk call (`/apps/spreed/?callUser=…#direct-call`), or to the office without Talk. With Client Push, a `virtualoffice_knock` message goes to that one person only, so an open office shows the knock or answer at once; it never goes through the room's event batch, which everyone inside receives.
 
@@ -61,9 +61,9 @@ Preferences (character and view choices) and the "Today" note are ordinary per-u
 
 **Team places.** A Team office asks `OCP\Teams\ITeamManager::getSharedWith()` for the resources shared with its Team, the same list as the Team page, and shows up to 6 on the wall and in the people list. Other offices are left out. Icons given as SVG markup are shown as `<img>` data URLs, so the markup never runs in the page. Deck boards get a badge with the cards due today or overdue, from Deck's `overview/upcoming` API as the viewer; the office's own conversation shows when its call is running. A conversation office links to the offices of the Teams the conversation belongs to (`getTeamsForResource('talk', …)`).
 
-**Focus sessions.** Starting or joining one walks you to your desk, or to the focus desks. A shared 25 or 50 minute session lives in the office's room state (`focus`: start, end, length, members) and changes like props, in the office lock with a `focus` event. Ending a presence takes the person out of it; the last one out ends it; snapshots only list members who are still inside.
+**Focus sessions.** Starting or joining one walks you to your desk, or to the focus desks. A shared 25 or 50 minute session lives in the office's room state (`focus`: start, end, length, members) and changes like props, in the office lock with a `focus` event. Ending a presence takes the person out of it; the last one out ends it, and a session that ran out is dropped when a member leaves; snapshots only list members who are still inside.
 
-**Coffee roulette.** Group and organization offices offer a weekly roulette. `PairRoulette` runs every 7 days, shuffles people who joined and still belong to the audience, avoids each person's most recent partner when possible, and notifies both with a link to a one-to-one Talk call. With an odd number, one person waits. When the audience cannot be checked, nobody is paired that week.
+**Coffee roulette.** Group offices and offices for everyone offer a weekly roulette. `PairRoulette` runs every 7 days, drops sign-ups of people who left the audience, shuffles the others who are welcome (not removed for a while), avoids each person's most recent partner when possible, and notifies both with a link to a one-to-one Talk call. With an odd number, one person waits. When the audience cannot be checked, nobody is paired that week.
 
 **Temporary removal.** A manager's removal blocks entering and also hides the person's desk (without freeing it) and stops knocks to them, arrival notifications and roulette pairs for that office until it ends (`AccessPolicy::isWelcome`).
 
@@ -105,22 +105,30 @@ OCS base `/ocs/v2.php/apps/virtualoffice/api/v1`. Every response is `no-store`. 
 | `OFFICE_UNAVAILABLE` | 404 | Missing, or not in the audience (indistinguishable on purpose) |
 | `ACTION_DENIED` | 403 | Visible, but not allowed |
 | `OFFICE_REMOVED` | 403 | Temporarily removed by a manager |
+| `AUTH_REQUIRED` | 401 | Not signed in (beacon) |
+| `KNOCK_GONE`, `PERSON_UNAVAILABLE` | 404 | Knock answered or expired; person cannot be knocked on |
 | `ACTIVE_ELSEWHERE`, `TAKEN_OVER`, `ROOM_FULL`, `PATH_CONFLICT` | 409 | Room state |
+| `DESK_TAKEN`, `KNOCK_PENDING`, `LAST_MANAGER`, `CONFLICT` | 409 | Desk, knock, manager or concurrent change |
 | `NOT_PRESENT` | 410 | Lease ran out |
 | `REVISION_MISMATCH` | 412 | Stale `If-Match` |
-| `INVALID_INPUT`, `OUT_OF_REACH` | 422 | Input |
+| `REVISION_REQUIRED` | 428 | Missing `If-Match` |
+| `INVALID_INPUT`, `OUT_OF_REACH`, `CONVERSATION_NOT_SUPPORTED` | 422 | Input; `INVALID_INPUT` carries a translated message for the form |
 | `RATE_LIMITED` | 429 | Too fast |
-| `AUDIENCE_UNAVAILABLE` | 503 | Teams backend failed; never treated as "not a member" |
+| `AUDIENCE_UNAVAILABLE` | 503 | Teams or Talk failed; never treated as "not a member" |
 
-Offices: `GET/POST /offices`, `GET/PATCH/DELETE /offices/{token}` (PATCH and DELETE need `If-Match`), `/offices/{token}/managers`, `/offices/{token}/removals`, `/offices/{token}/people`, `/offices/{token}/talk-conversations`, `/offices/{token}/card`, `POST /summaries`, `GET /audiences`.
+Offices: `GET/POST /offices`, `POST /offices/directory`, `GET/PATCH/DELETE /offices/{token}` (PATCH and DELETE need `If-Match`), `/offices/{token}/managers`, `/offices/{token}/removals`, `/offices/{token}/people`, `/offices/{token}/talk-conversations`, `/offices/{token}/resources`, `/offices/{token}/card`, `POST /summaries`, `GET /audiences`.
 
-Room: `POST /offices/{token}/room/{enter,move,stop,emote,interact,mode,profile,leave}`, `GET /offices/{token}/room?session=&rev=`.
+Conversations: `POST /conversations/{token}/office`, `GET /conversations/{token}/team-offices`.
 
-Preferences: `GET/PUT/DELETE /me/preferences`. Admin: `GET/PUT /admin/settings`, `GET /admin/offices`.
+Room: `POST /offices/{token}/room/{enter,move,stop,emote,interact,mode,profile,focus,focus/leave,leave}`, `GET /offices/{token}/room?session=&rev=`.
 
-Pages: `/apps/virtualoffice/`, `/apps/virtualoffice/o/{token}`, `/apps/virtualoffice/o/{token}/talk` (checks access, then redirects to Talk; never joins a call), `POST /apps/virtualoffice/beacon/leave/{token}`.
+Together: `GET /offices/{token}/desks`, `PUT/DELETE /offices/{token}/desks/{deskId}`, `POST /offices/{token}/knocks`, `POST /knocks/{id}?answer=`, `GET/PUT/DELETE /offices/{token}/watch`, `GET/PUT/DELETE /offices/{token}/roulette`.
 
-Push message `virtualoffice_room` with body `{office, rev, serverTime, events}`; events are `upsert` (full participant), `remove`, `prop`, `call`, `config` and `closed`.
+Preferences: `GET/PUT/DELETE /me/preferences`, `GET/PUT /me/today`. Admin: `GET/PUT /admin/settings`, `GET /admin/offices`.
+
+Pages: `/apps/virtualoffice/`, `/apps/virtualoffice/o/{token}`, `/apps/virtualoffice/o/{token}/talk` (checks access, then redirects to Talk; never joins a call), `/apps/virtualoffice/talk/{conversationToken}` (the door to a conversation's office, opened from the Talk message menu), `POST /apps/virtualoffice/beacon/leave/{token}`.
+
+Push message `virtualoffice_room` with body `{office, rev, serverTime, events}`; events are `upsert` (full participant), `remove`, `prop`, `call`, `config`, `focus`, `desks` and `closed`. `virtualoffice_knock` goes to one person only, with a `knock` or `answer`.
 
 ## Shared catalog
 

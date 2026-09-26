@@ -7,17 +7,30 @@
 	xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
 	<id>virtualoffice</id>
 	<name>Virtual Office</name>
-	<summary>See who's around, right inside Talk.</summary>
-	<description><![CDATA[Give a Talk group conversation its own little office. Open it from a message menu, share it in chat, and see who's there. Enter as a character and move around without leaving Talk.
+	<summary>A small shared office in Nextcloud. See who's around and drop by, right from Talk.</summary>
+	<description><![CDATA[Virtual Office gives a Team, a group or a Talk conversation a small shared office. Everyone who belongs to it can see who is there and step in as a character. Walk over to a colleague, wave, make a coffee together, or knock to ask "got 2 minutes?" before you start a call.
 
-Walk over, wave, share a coffee, or ask “got 2 minutes?” before a call. The office shows when a Talk call is running; you can join it from the full office. You can also make offices for Teams and groups. Admins can enable an office for everyone.
+**Right inside Talk**
 
-Pick a character, claim a desk, or leave a short Today note. Find offices through Talk, Team pages, search, or the Dashboard.
+Open a conversation's office from any message menu and use it right in the chat. The office shows when the conversation's call is running, and you can join the call from there.
 
-Only members can enter their Team, group, or conversation office. Opening a link does not make you appear there; you choose Enter office. Virtual Office does not keep a history of visits or movement. The admin guide explains what optional features store and when that data is removed.
+**Small moments, without a meeting**
 
-Requires Nextcloud 35. Talk 25 adds conversation offices and calls. Teams, Deck, and Client Push add other features. Group offices work without them.]]></description>
-	<version>1.2.0</version>
+- Claim a desk and leave a short note about your day
+- Knock on someone; they answer Now, In 10 minutes or Later
+- Focus together in 25 or 50 minute sessions
+- Sign up for a weekly coffee roulette in group offices
+- See who is in your offices on the Dashboard, and find offices in search and on Team pages
+- Use the map with a mouse, touch or the keyboard, or the people and places list with a screen reader
+
+**Privacy**
+
+Opening an office never makes you visible: you choose Enter office. Only members of the Team, group or conversation can enter. Virtual Office keeps no history of visits or movement.
+
+**Requirements**
+
+Nextcloud 35, with no extra server. Talk adds conversation offices and calls (tested with Talk 25). Teams adds Team offices, Deck shows due cards on Team boards, and Client Push makes movement instant. Group offices work without other apps.]]></description>
+	<version>1.0.0</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author>Hoang Pham</author>
 	<namespace>VirtualOffice</namespace>
@@ -31,8 +44,9 @@ Requires Nextcloud 35. Talk 25 adds conversation offices and calls. Teams, Deck,
 	<website>https://github.com/hweihwang/virtualoffice</website>
 	<bugs>https://github.com/hweihwang/virtualoffice/issues</bugs>
 	<repository>https://github.com/hweihwang/virtualoffice</repository>
-	<screenshot>https://raw.githubusercontent.com/hweihwang/virtualoffice/main/docs/screenshots/talk.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/hweihwang/virtualoffice/main/docs/screenshots/office.png</screenshot>
+	<screenshot>https://raw.githubusercontent.com/hweihwang/virtualoffice/main/docs/screenshots/talk.png</screenshot>
+	<screenshot>https://raw.githubusercontent.com/hweihwang/virtualoffice/main/docs/screenshots/dashboard.png</screenshot>
 	<dependencies>
 		<nextcloud min-version="35" max-version="35"/>
 	</dependencies>

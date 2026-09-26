@@ -130,6 +130,8 @@ test.describe('offices and access', () => {
 
 test.describe('room', () => {
 	test('capacity holds under 33 simultaneous entries', async () => {
+		// Signing in 33 new accounts for the first time is slow on a busy machine.
+		test.setTimeout(240_000)
 		const users = Array.from({ length: 33 }, (_, i) => `load${String(i + 1).padStart(2, '0')}`)
 		const office = await admin.call('POST', '/offices', { title: uniqueName('Load office'), audience: { kind: 'group', id: 'virtualoffice-load' }, managerUid: 'load01' })
 		const apis = await Promise.all(users.map((u) => Api.as(u)))

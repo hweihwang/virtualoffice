@@ -7,7 +7,7 @@ import type { AdminSettings } from '../api.ts'
 import type { OfficeDefinition } from '../types.ts'
 
 import { loadState } from '@nextcloud/initial-state'
-import { t } from '@nextcloud/l10n'
+import { n, t } from '@nextcloud/l10n'
 import { onMounted, ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
@@ -56,9 +56,9 @@ onMounted(loadOffices)
 	<div>
 		<NcSettingsSection
 			:name="t('virtualoffice', 'Virtual Office')"
-			:description="t('virtualoffice', 'Shared rooms where people in a Team or group see each other as characters.')">
-			<NcNoteCard v-if="settings.clientPush" type="success" :text="t('virtualoffice', 'Client Push is set up. Movement appears instantly.')" />
-			<NcNoteCard v-else type="info" :text="t('virtualoffice', 'Offices work now. Browsers in an office poll about once a second. Set up Client Push (notify_push) so movement appears instantly and busy offices put less load on the server.')" />
+			:description="t('virtualoffice', 'Shared offices where people in a Team, group or Talk conversation see each other as characters.')">
+			<NcNoteCard v-if="settings.clientPush" type="success" :text="t('virtualoffice', 'Movement is delivered instantly through Client Push.')" />
+			<NcNoteCard v-else type="info" :text="t('virtualoffice', 'Offices work without Client Push, but browsers check for updates about once a second. Set up Client Push (notify_push) so movement appears instantly and busy offices put less load on the server.')" />
 
 			<div class="admin__row">
 				<NcTextField
@@ -90,14 +90,14 @@ onMounted(loadOffices)
 
 		<NcSettingsSection
 			:name="t('virtualoffice', 'All offices')"
-			:description="t('virtualoffice', 'Offices whose managers all left the audience are marked. Open one to add a manager or delete it.')">
+			:description="t('virtualoffice', 'Offices where no manager has access anymore are marked. Open one to add a manager or delete it.')">
 			<p v-if="offices.length === 0" class="admin__hint">
-				{{ t('virtualoffice', 'No offices yet.') }}
+				{{ t('virtualoffice', 'No offices yet') }}
 			</p>
 			<ul v-else class="admin__offices">
 				<li v-for="office in offices" :key="office.token">
 					<a :href="office.url">{{ office.title }}</a>
-					<span class="admin__hint">{{ office.audience.label }} · {{ t('virtualoffice', '{count} inside', { count: office.count ?? 0 }) }}</span>
+					<span class="admin__hint">{{ office.audience.label }} · {{ n('virtualoffice', '%n inside', '%n inside', office.count ?? 0) }}</span>
 					<strong v-if="office.unmanaged" class="admin__unmanaged">{{ t('virtualoffice', 'No manager') }}</strong>
 				</li>
 			</ul>

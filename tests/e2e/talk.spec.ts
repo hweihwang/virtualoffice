@@ -73,7 +73,7 @@ test('a conversation gets its own office, used right inside Talk', async ({ brow
 	await more.click()
 	const [door] = await Promise.all([a.context().waitForEvent('page'), a.getByRole('menuitem', { name: 'Open conversation office' }).click()])
 	await expect(door.getByText('Pin it at the top of the chat')).toBeVisible({ timeout: 20_000 })
-	await door.getByRole('button', { name: 'Open the office' }).click()
+	await door.getByRole('button', { name: 'Open office' }).click()
 	await door.waitForURL(/\/apps\/virtualoffice\/o\//)
 	await expect(door.getByText(/Talk conversation Weekly retro/)).toBeVisible()
 	await door.getByRole('button', { name: 'Enter office' }).click()

@@ -144,7 +144,7 @@ onBeforeUnmount(() => {
 		<NcEmptyContent
 			v-else-if="offices.length === 0"
 			:name="search ? t('virtualoffice', 'No matching offices') : t('virtualoffice', 'No offices yet')"
-			:description="t('virtualoffice', 'Create an office for one of your Teams or Talk conversations. Everyone in it can drop in.')">
+			:description="t('virtualoffice', 'Create an office for one of your Teams, groups or Talk conversations. Everyone in it can drop in.')">
 			<template #icon>
 				<NcIconSvgWrapper :path="mdiAccountGroup" />
 			</template>
@@ -170,7 +170,7 @@ onBeforeUnmount(() => {
 						</span>
 						<span v-if="office.call?.known && office.call.active" class="office-card__call">{{ t('virtualoffice', 'Call in progress') }}</span>
 						<span class="office-card__count" :class="{ 'office-card__count--busy': (office.count ?? 0) > 0 }">
-							<template v-if="office.count === null">{{ t('virtualoffice', 'Unknown who is here') }}</template>
+							<template v-if="office.count === null">{{ t('virtualoffice', 'Could not load who is here') }}</template>
 							<template v-else-if="office.count === 0">{{ t('virtualoffice', 'Nobody here right now') }}</template>
 							<template v-else>{{ n('virtualoffice', '%n person here', '%n people here', office.count) }}</template>
 						</span>

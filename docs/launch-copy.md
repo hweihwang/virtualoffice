@@ -4,41 +4,47 @@
 -->
 # Launch copy
 
-Use these after the public repository and App Store page are live. Check the links before posting.
+Use these after the public repository and the App Store page are live. Open every link before posting.
 
-## One line
+## Tagline
 
-See who's around, right inside Talk.
+See who's around. Drop by.
 
 ## GitHub About
 
-A little office inside Talk group chats. See who's there, say hi, and join a call. Also for Nextcloud Teams and groups.
+A small shared office for Nextcloud Teams, groups and Talk conversations. See who's around and say hi before you start a call.
+
+Topics: `nextcloud`, `nextcloud-app`, `nextcloud-talk`, `virtual-office`, `remote-work`, `presence`
 
 ## Short post
 
-Virtual Office gives your Talk group chat a little office. See who's there, step in as a character, wave or make coffee, and join a call when you're ready. Teams and groups can have offices too. For Nextcloud 35. Free and open source.
+Virtual Office gives your Nextcloud Team or Talk group chat a small shared office. See who's there, step in as a character, wave or make a coffee together, and knock to ask “got 2 minutes?” before a call. Free and open source, for Nextcloud 35.
 
 https://apps.nextcloud.com/apps/virtualoffice
 
 ## Longer announcement
 
-Virtual Office gives Talk group conversations a little shared office. Open one from a message menu, share it in chat, and see who's there before you enter. You can step in and move around without leaving Talk.
+Remote teams lose the small moments: seeing that someone is around, asking a quick question, having a coffee together. Virtual Office brings a little of that back, inside Nextcloud.
 
-Pick a character, walk over to a colleague, share a coffee, or ask “got 2 minutes?” before a call. The office shows when a Talk call is running; open the full office to join it.
+A Team, a group or a Talk conversation gets a small shared office. Everyone who belongs to it can see who is there and step in as a character. You can open a conversation's office from any Talk message menu and use it right in the chat, or open the full office.
 
-Teams and groups can have offices too, and admins can enable one for the whole organization. Opening an office does not make you visible. You choose when to enter, and the app does not keep a history of visits or movement. Group offices work without Talk.
+Inside, you can walk over to a colleague, wave, make a coffee together, or knock to ask “got 2 minutes?”. Claim a desk and leave a short note about your day. Start a 25 minute focus session that others can join, or sign up for a weekly coffee roulette.
 
-For Nextcloud 35. See the app and installation details: https://apps.nextcloud.com/apps/virtualoffice
+Opening an office never makes you visible; you choose when to enter. Only members can enter, and Virtual Office keeps no history of visits or movement. It runs on Nextcloud 35 with no extra server.
+
+Install it from the App Store: https://apps.nextcloud.com/apps/virtualoffice
+Source and admin guide: https://github.com/hweihwang/virtualoffice
 
 ## Demo description
 
-A Talk group chat gets its own office. Colleagues enter from the chat, then meet in the full office, wave, and make coffee. Recorded in a Nextcloud 35 test instance with test accounts.
+A Talk group chat with its office card. Alice steps in from the chat, then opens the full office, says hi to Bảo, makes a coffee with him, knocks on Chi and joins a focus session. Recorded on a Nextcloud 35 test instance with test accounts.
 
-## Image captions
+## Screenshot captions
 
-- A conversation office inside Talk: chat and office together on one screen.
-- The Studio: three people in a shared office, with a coffee corner, common room, and focus desks.
+1. The Studio: a Team office with people at the coffee corner, two colleagues focusing at their desks, and a desk that shows its owner's note while she is out.
+2. A Talk conversation with an interactive office card.
+3. The Dashboard widget shows who is in your offices.
 
-## Link and brand details
+## Name and brand
 
-App name: Virtual Office. Describe it as “for Nextcloud” where useful; do not imply that it is an official Nextcloud app. The App Store and GitHub source are the two primary links. The landing page is a visual introduction, not a replacement for installation and support information.
+The app name is Virtual Office. Say “for Nextcloud” where it helps. Do not suggest that it is an official Nextcloud app, and do not use the Nextcloud logo. The App Store page and the GitHub repository are the two primary links; the landing page is a visual introduction.

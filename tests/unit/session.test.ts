@@ -370,7 +370,7 @@ describe('ServerClock', () => {
 })
 
 describe('walking into a zone', () => {
-	it('picks a free cell near the anchor instead of stacking people', async () => {
+	it('picks a free cell beside people near the anchor instead of stacking them', async () => {
 		vi.useFakeTimers()
 		const layoutAnchor: Cell = [16, 13]
 		const api = fakeApi({ enter: vi.fn(async () => snapshot(1, [person('alice', [5, 17]), person('bao', layoutAnchor)])) })
@@ -381,8 +381,23 @@ describe('walking into a zone', () => {
 		const path = (api.move as ReturnType<typeof vi.fn>).mock.calls[0][2] as Cell[]
 		const target = path.at(-1)!
 		expect(target).not.toEqual(layoutAnchor)
-		expect(Math.hypot(target[0] - 16, target[1] - 13)).toBeLessThanOrEqual(1)
+		// Close to Bảo with two free cells between, so the name tags do not overlap.
+		expect(Math.max(Math.abs(target[0] - 16), Math.abs(target[1] - 13))).toBe(3)
 		expect(session.walkToZone('nowhere')).toBe(false)
+		vi.useRealTimers()
+	})
+})
+
+describe('using a prop', () => {
+	it('stands beside someone already at the prop, not on their spot', async () => {
+		vi.useFakeTimers()
+		const api = fakeApi({ enter: vi.fn(async () => snapshot(1, [person('alice', [5, 17]), person('bao', [3, 2])])) })
+		const session = new RoomSession(TOKEN, 'alice', api, null, HASH, 'starter-office-v1')
+		await session.enter()
+		expect(session.useProp('coffee')).toBe('walking')
+		await vi.advanceTimersByTimeAsync(1)
+		const path = (api.move as ReturnType<typeof vi.fn>).mock.calls[0][2] as Cell[]
+		expect(path.at(-1)).not.toEqual([3, 2])
 		vi.useRealTimers()
 	})
 })

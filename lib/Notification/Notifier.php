@@ -64,6 +64,7 @@ class Notifier implements INotifier {
 		$from = (string)($params['from'] ?? '');
 		$user = ['type' => 'user', 'id' => $from, 'name' => $this->userManager->getDisplayName($from) ?? $from];
 		$notification->setIcon($this->urlGenerator->getAbsoluteURL($this->urlGenerator->imagePath(Application::APP_ID, 'app-dark.svg')))
+			// TRANSLATORS %s is the name of the office
 			->setParsedMessage($l->t('In %s', [$office->getTitle()]));
 
 		if ($notification->getSubject() === 'knock') {

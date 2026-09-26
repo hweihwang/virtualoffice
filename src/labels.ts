@@ -134,18 +134,18 @@ export function propLabel(id: string): string {
  */
 export function errorMessage(code: string): string {
 	return ({
-		OFFICE_UNAVAILABLE: t('virtualoffice', 'This office is not available. It may have been deleted, or you are not part of its audience.'),
+		OFFICE_UNAVAILABLE: t('virtualoffice', 'This office is not available. It may have been deleted, or you do not have access to it.'),
 		ACTION_DENIED: t('virtualoffice', 'You are not allowed to do that.'),
 		REVISION_MISMATCH: t('virtualoffice', 'Someone else changed this office. The latest version was loaded.'),
 		RATE_LIMITED: t('virtualoffice', 'Slow down a little and try again.'),
 		OUT_OF_REACH: t('virtualoffice', 'Walk a bit closer first.'),
-		AUDIENCE_UNAVAILABLE: t('virtualoffice', 'Teams are not available right now. Please try again later.'),
+		AUDIENCE_UNAVAILABLE: t('virtualoffice', 'Access to this office cannot be checked because Teams or Talk is not available right now. Try again later.'),
 		LAST_MANAGER: t('virtualoffice', 'Add another manager first.'),
-		INVALID_INPUT: t('virtualoffice', 'Please check your input.'),
-		NETWORK: t('virtualoffice', 'The server cannot be reached.'),
+		INVALID_INPUT: t('virtualoffice', 'Some fields are not valid. Check them and try again.'),
+		NETWORK: t('virtualoffice', 'The server cannot be reached. Check your connection and try again.'),
 		DESK_TAKEN: t('virtualoffice', 'Someone else just took that desk.'),
 		KNOCK_PENDING: t('virtualoffice', 'You already knocked. Wait for the answer.'),
 		KNOCK_GONE: t('virtualoffice', 'This knock was already answered or is too old.'),
-		PERSON_UNAVAILABLE: t('virtualoffice', 'This person cannot be reached here.'),
-	} as Record<string, string>)[code] ?? t('virtualoffice', 'Something went wrong. Please try again.')
+		PERSON_UNAVAILABLE: t('virtualoffice', 'You cannot knock on or call this person right now.'),
+	} as Record<string, string>)[code] ?? t('virtualoffice', 'Something went wrong. Try again.')
 }

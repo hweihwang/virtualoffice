@@ -74,26 +74,33 @@ class RouletteServiceTest extends TestCase {
 
 	public function testPairsAvoidLastWeeksPartnerAndTheOddOneWaits(): void {
 		$this->entries->method('findByOffice')->willReturn([$this->entry('ana', 'ben'), $this->entry('ben', 'ana'), $this->entry('cam'), $this->entry('dia'), $this->entry('eli')]);
+		$this->policy->method('isMember')->willReturn(true);
 		$this->policy->method('isWelcome')->willReturn(true);
 		$pairs = $this->service->pairOffice($this->office, fn (array $pool) => $pool);
 		$this->assertSame([['ana', 'cam'], ['ben', 'dia']], $pairs);
 		$this->assertSame(['ana', 'cam', 'ben', 'dia'], $this->notified);
 	}
 
-	public function testPeopleWhoLeftTheAudienceAreNotPaired(): void {
-		$this->entries->method('findByOffice')->willReturn([$this->entry('ana'), $this->entry('ben'), $this->entry('cam')]);
+	public function testPeopleRemovedForAWhileWaitAndPeopleWhoLeftAreDropped(): void {
+		$this->entries->method('findByOffice')->willReturn([$this->entry('ana'), $this->entry('ben'), $this->entry('cam'), $this->entry('dia')]);
+		$deleted = [];
+		$this->entries->method('deleteFor')->willReturnCallback(function (int $officeId, string $uidKey) use (&$deleted) {
+			$deleted[] = $uidKey;
+		});
+		$this->policy->method('isMember')->willReturnCallback(fn (IUser $u) => $u->getUID() !== 'dia');
 		$this->policy->method('isWelcome')->willReturnCallback(fn (IUser $u) => $u->getUID() !== 'ben');
 		$this->assertSame([['ana', 'cam']], $this->service->pairOffice($this->office, fn (array $pool) => $pool));
+		$this->assertSame([RoomService::uidKey('dia')], $deleted);
 	}
 
 	public function testNobodyIsPairedWhileTheAudienceCannotBeChecked(): void {
 		$this->entries->method('findByOffice')->willReturn([$this->entry('ana'), $this->entry('ben')]);
-		$this->policy->method('isWelcome')->willThrowException(new ApiException('AUDIENCE_UNAVAILABLE', 503));
+		$this->policy->method('isMember')->willThrowException(new ApiException('AUDIENCE_UNAVAILABLE', 503));
 		$this->assertSame([], $this->service->pairOffice($this->office));
 		$this->assertSame([], $this->notified);
 	}
 
-	public function testOnlyGroupAndOrganizationOfficesHaveARoulette(): void {
+	public function testOnlyGroupOfficesAndOfficesForEveryoneHaveARoulette(): void {
 		$team = new Office();
 		$team->setAudienceKind('team');
 		$this->expectException(ApiException::class);

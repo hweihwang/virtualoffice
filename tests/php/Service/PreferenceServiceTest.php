@@ -36,6 +36,7 @@ class PreferenceServiceTest extends TestCase {
 			$this->store[$uid][$key] = $value;
 			return true;
 		});
+		$config->method('getValuesByUsers')->willReturnCallback(fn ($app, $key) => array_map(fn (array $values) => $values[$key], array_filter($this->store, fn (array $values) => isset($values[$key]))));
 		$config->method('deleteUserConfig')->willReturnCallback(function ($uid, $app, $key) {
 			unset($this->store[$uid][$key]);
 		});
@@ -112,6 +113,14 @@ class PreferenceServiceTest extends TestCase {
 		$this->assertSame($now + 60_000, $this->service->setToday('alice', 'Soon', $now - 5, $now)['expiresAt']);
 		$this->assertNull($this->service->setToday('alice', '   ', $now + 1000, $now));
 		$this->assertNull($this->service->today('alice', $now));
+	}
+
+	public function testExpiredTodayNotesAreDeleted(): void {
+		$this->service->setToday('alice', 'Planning', 2_000_000, 1_000_000);
+		$this->service->setToday('bao', 'Reviews', 9_000_000, 1_000_000);
+		$this->service->expireToday(3_000_000);
+		$this->assertArrayNotHasKey('today', $this->store['alice']);
+		$this->assertSame('Reviews', $this->service->today('bao', 3_000_000)['text']);
 	}
 
 	public function testTodayNoteRejectsBadInput(): void {

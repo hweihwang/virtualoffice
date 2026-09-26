@@ -9,7 +9,7 @@ The release archive is a custom tarball with one top-level `virtualoffice/` dire
 ## Prepare
 
 1. Choose the release version in `package.json` and `appinfo/info.xml`. Add a matching `## <version>` entry to `CHANGELOG.md`.
-2. Review the app metadata, links, screenshots, license notices, and changes since the previous release.
+2. Review the app metadata, links, screenshots, license notices, and changes since the previous release. When the interface changed, rebuild the screenshots, the social preview and the demo video with `scripts/marketing/build.sh`; it resets the test fixture and needs ffmpeg, cwebp and ImageMagick. Check every image and the video before committing them.
 3. Run the checks and build from a clean checkout:
 
    ```sh
@@ -71,6 +71,6 @@ The source repository must be public before requesting the app certificate. Afte
 
 In GitHub, set the repository description from [launch-copy.md](launch-copy.md), set the homepage to `https://hweihwang.github.io/virtualoffice/`, enable private vulnerability reporting for [SECURITY.md](../SECURITY.md), and upload [social-preview.png](media/social-preview.png) in **Settings › Social preview**. Publish GitHub Pages from the `main` branch's `/docs` folder. Check the landing page on desktop and mobile, including video playback and the App Store link.
 
-The [24-second demo](media/demo.mp4) is ready for the landing page. To show it in the App Store gallery, upload it to PeerTube and add its public HTTPS URL as a `<video>` element in `appinfo/info.xml` **before** packaging and signing. The App Store does not accept YouTube links in that field. If no PeerTube account is available, the two screenshots remain the gallery; the landing page still shows the demo.
+The [36-second demo](media/demo.mp4) is ready for the landing page. To show it in the App Store gallery, upload it to PeerTube and add its public HTTPS URL as a `<video>` element in `appinfo/info.xml` **before** packaging and signing. The App Store does not accept YouTube links in that field. If no PeerTube account is available, the three screenshots remain the gallery; the landing page still shows the demo.
 
 After the App Store release is live, check the installation link in the README and landing page, then use the ready [launch copy](launch-copy.md) for the announcement.

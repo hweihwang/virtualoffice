@@ -371,6 +371,8 @@ export class RoomSession {
 	/**
 	 * Walk into a zone: the free cell closest to its anchor, so people who
 	 * pick the same zone stand next to each other instead of on one spot.
+	 * A character reaches above its cell and its name tag below and to the
+	 * sides, so two cells around someone count as taken too.
 	 */
 	walkToZone(zoneId: string): boolean {
 		const anchor = this.layout.zoneAnchors[zoneId]
@@ -381,8 +383,12 @@ export class RoomSession {
 		const taken = new Set<string>()
 		for (const [uid, motion] of this.motions) {
 			if (uid !== this.uid) {
-				const [x, y] = finalCell(motion.trajectory)
-				taken.add(`${Math.round(x)}:${Math.round(y)}`)
+				const [x, y] = finalCell(motion.trajectory).map(Math.round)
+				for (const dx of [-2, -1, 0, 1, 2]) {
+					for (const dy of [-2, -1, 0, 1, 2]) {
+						taken.add(`${x + dx}:${y + dy}`)
+					}
+				}
 			}
 		}
 		const [zx, zy, w, h] = zone.rect
@@ -454,10 +460,13 @@ export class RoomSession {
 		}
 		const spots = standingSpots(this.layout, prop.cell, prop.radius)
 		const from = roundCell(nextStop(own.trajectory, t + this.lead()).cell)
+		const others = [...this.motions].filter(([uid]) => uid !== this.uid).map(([, motion]) => roundCell(finalCell(motion.trajectory)))
+		// Farthest from the others first, so two people at a prop stand apart.
+		const room = (cell: Cell) => Math.min(3, ...others.map(([x, y]) => Math.max(Math.abs(x - cell[0]), Math.abs(y - cell[1]))))
 		const best = spots
-			.map((cell) => ({ cell, path: findPath(this.layout, from, cell) }))
+			.map((cell) => ({ cell, room: room(cell), path: findPath(this.layout, from, cell) }))
 			.filter((s) => s.path !== null)
-			.sort((a, b) => a.path!.length - b.path!.length)[0]
+			.sort((a, b) => b.room - a.room || a.path!.length - b.path!.length)[0]
 		if (!best) {
 			return 'unreachable'
 		}

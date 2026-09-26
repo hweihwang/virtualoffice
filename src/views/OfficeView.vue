@@ -521,7 +521,7 @@ onBeforeUnmount(() => {
 						</p>
 						<p v-if="callRunning && call" class="call-line">
 							<NcIconSvgWrapper :path="mdiHeadset" :size="20" />
-							{{ n('virtualoffice', 'A call is running with %n person', 'A call is running with %n people', call.participants.length) }}
+							{{ n('virtualoffice', 'Call in progress with %n person', 'Call in progress with %n people', call.participants.length) }}
 						</p>
 						<p>{{ t('virtualoffice', 'When you enter, people in the office see your name and character. You can leave at any time. The office does not keep a history of who was here.') }}</p>
 
@@ -598,7 +598,7 @@ onBeforeUnmount(() => {
 					<div class="room__title">
 						<h2>{{ session.state.title || office.title }}</h2>
 						<span class="room__meta">
-							{{ audienceText }} · {{ t('virtualoffice', '{count} of {capacity} here', { count: people, capacity: session.state.capacity }) }}
+							{{ audienceText }} · {{ n('virtualoffice', '%n of {capacity} here', '%n of {capacity} here', people, { capacity: session.state.capacity }) }}
 						</span>
 					</div>
 					<div class="room__header-actions">

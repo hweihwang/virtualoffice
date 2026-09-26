@@ -12,6 +12,7 @@ namespace OCA\VirtualOffice\Tests\Service;
 use OCA\VirtualOffice\Db\Office;
 use OCA\VirtualOffice\Exception\ApiException;
 use OCA\VirtualOffice\Service\TalkService;
+use OCP\IL10N;
 use OCP\IURLGenerator;
 use OCP\IUser;
 use OCP\Talk\IBroker;
@@ -31,7 +32,9 @@ class TalkServiceTest extends TestCase {
 		$urls = $this->createStub(IURLGenerator::class);
 		$urls->method('getAbsoluteURL')->willReturn('https://cloud.example.test/');
 		$urls->method('linkToRouteAbsolute')->willReturnCallback(static fn ($route, $args) => 'https://cloud.example.test/call/' . $args['token']);
-		return new TalkService($broker, $teams, $urls, new NullLogger());
+		$l10n = $this->createStub(IL10N::class);
+		$l10n->method('t')->willReturnArgument(0);
+		return new TalkService($broker, $teams, $urls, new NullLogger(), $l10n);
 	}
 
 	private function office(string $kind, ?array $talk = null): Office {

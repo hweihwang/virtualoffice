@@ -22,7 +22,7 @@ use OCP\IUserManager;
 use OCP\Notification\IManager as INotificationManager;
 
 /**
- * Coffee roulette for group and organization offices: once a week, people
+ * Coffee roulette for group offices and offices for everyone: once a week, people
  * who joined are paired at random for a short chat, across the teams they
  * would not meet otherwise. Joining is voluntary and can be undone any time.
  */
@@ -55,7 +55,7 @@ class RouletteService {
 	public function join(IUser $user, Office $office): array {
 		$this->accessPolicy->assertCanEnter($user, $office);
 		if (!in_array($office->getAudienceKind(), self::KINDS, true)) {
-			throw ApiException::invalid('Coffee roulette is for group and organization offices');
+			throw ApiException::invalid('Coffee roulette is for group offices and offices for everyone');
 		}
 		$uidKey = RoomService::uidKey($user->getUID());
 		if ($this->entries->findFor($office->getId(), $uidKey) === null) {
@@ -108,7 +108,10 @@ class RouletteService {
 		foreach ($this->entries->findByOffice($office->getId()) as $entry) {
 			$user = $this->userManager->get($entry->getUid());
 			try {
-				if ($user !== null && $this->accessPolicy->isWelcome($user, $office)) {
+				if ($user === null || !$this->accessPolicy->isMember($user, $office)) {
+					// Left the group or the offices for everyone were turned off.
+					$this->entries->deleteFor($office->getId(), $entry->getUidKey());
+				} elseif ($this->accessPolicy->isWelcome($user, $office)) {
 					$pool[] = $entry;
 				}
 			} catch (ApiException) {

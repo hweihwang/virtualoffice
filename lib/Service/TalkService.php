@@ -11,6 +11,7 @@ namespace OCA\VirtualOffice\Service;
 
 use OCA\VirtualOffice\Db\Office;
 use OCA\VirtualOffice\Exception\ApiException;
+use OCP\IL10N;
 use OCP\IURLGenerator;
 use OCP\IUser;
 use OCP\Talk\IBroker;
@@ -30,6 +31,7 @@ class TalkService {
 		private ITeamManager $teamManager,
 		private IURLGenerator $urlGenerator,
 		private LoggerInterface $logger,
+		private IL10N $l10n,
 	) {
 	}
 
@@ -72,7 +74,7 @@ class TalkService {
 			return null;
 		}
 		if (!is_array($talk) || array_diff(array_keys($talk), ['source', 'token', 'url', 'label']) !== []) {
-			throw ApiException::invalid('Invalid Talk link');
+			throw ApiException::invalid($this->l10n->t('Paste a Talk conversation link from this Nextcloud'));
 		}
 		$source = $talk['source'] ?? null;
 		if ($source === 'team') {
@@ -82,20 +84,20 @@ class TalkService {
 					return ['source' => 'team', 'token' => $conversation['token'], 'label' => $conversation['label']];
 				}
 			}
-			throw ApiException::invalid('This conversation is not shared with the Team');
+			throw ApiException::invalid($this->l10n->t('This conversation is not shared with the Team'));
 		}
 		if ($source === 'link') {
 			$token = $this->parseConversationToken((string)($talk['url'] ?? $talk['token'] ?? ''));
 			$label = trim(preg_replace('/[\x00-\x1F\x7F]/u', '', (string)($talk['label'] ?? '')) ?? '');
 			if ($token === null) {
-				throw ApiException::invalid('Paste a Talk conversation link from this Nextcloud');
+				throw ApiException::invalid($this->l10n->t('Paste a Talk conversation link from this Nextcloud'));
 			}
 			if ($label === '' || mb_strlen($label) > 60) {
-				throw ApiException::invalid('Give the conversation a name of up to 60 characters');
+				throw ApiException::invalid($this->l10n->t('Give the conversation a name of up to 60 characters'));
 			}
 			return ['source' => 'link', 'token' => $token, 'label' => $label];
 		}
-		throw ApiException::invalid('Invalid Talk link');
+		throw ApiException::invalid($this->l10n->t('Paste a Talk conversation link from this Nextcloud'));
 	}
 
 	/** Accepts a bare token or a conversation URL on this instance. */

@@ -69,7 +69,7 @@ class OfficeReferenceProvider extends ADiscoverableReferenceProvider implements 
 		}
 		$url = $this->urlGenerator->linkToRouteAbsolute('virtualoffice.page.office', ['token' => $token]);
 		$reference = new Reference($referenceText);
-		$reference->setTitle($this->l10n->t('Virtual office'));
+		$reference->setTitle($this->l10n->t('Virtual Office'));
 		$reference->setDescription($this->l10n->t('Step in to see who is around'));
 		$reference->setImageUrl($this->urlGenerator->getAbsoluteURL($this->urlGenerator->imagePath(Application::APP_ID, 'office-preview.webp')));
 		$reference->setUrl($url);

@@ -128,7 +128,7 @@ onMounted(() => searchAudiences())
 			<p class="create__hint">
 				{{ isTalk
 					? t('virtualoffice', 'Everyone in the conversation can find and enter the office. It keeps the conversation\'s name and follows it when it is renamed.')
-					: t('virtualoffice', 'Everyone in this audience can find and enter the office. You can change the name, decor and Talk link later, but not the audience.') }}
+					: t('virtualoffice', 'Everyone with access can find and enter the office. You can change the name, decor and Talk link later, but not who it is for.') }}
 			</p>
 			<NcSelect
 				v-if="needsManager"

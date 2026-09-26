@@ -11,6 +11,10 @@ occ() { docker compose exec -T -u www-data -e NC_PASS=$PASS app php occ "$@"; }
 
 docker compose up -d database redis app proxy
 until docker compose exec -T -u www-data app php occ status --output=json 2>/dev/null | grep -q '"installed":true'; do sleep 3; done
+# The image's entrypoint keeps writing config.php after the install; wait
+# until it has started Apache so our settings are not overwritten.
+started=$(docker inspect -f '{{.State.StartedAt}}' "$(docker compose ps -q app)")
+until docker compose logs --since "$started" app 2>/dev/null | grep -q 'AH00094'; do sleep 2; done
 
 occ config:system:set redis host --value=redis >/dev/null
 occ config:system:set redis port --value=6379 --type=integer >/dev/null

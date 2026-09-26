@@ -29,7 +29,7 @@ function onVisibility() {
 onMounted(() => {
 	renderer = new SceneRenderer(root.value!, props.session, {
 		zoneLabels: zoneLabels(),
-		youLabel: t('virtualoffice', 'you'),
+		youName: (name: string) => t('virtualoffice', '{name} (you)', { name }),
 		statusLabel,
 		reducedMotion: () => props.reducedEffects || media.matches,
 		onPropBlocked: () => emit('blocked'),
@@ -61,7 +61,7 @@ defineExpose({
 		:aria-label="t('virtualoffice', 'Office map')"
 		aria-describedby="vo-scene-help">
 		<p id="vo-scene-help" class="hidden-visually">
-			{{ t('virtualoffice', 'Click or tap a spot to walk there. With the map focused, use the arrow keys or W A S D to walk, Enter to use the coffee machine or plant when next to it, 1 to 4 for reactions and Escape to leave the map. Everything is also available in the people and places list.') }}
+			{{ t('virtualoffice', 'Click or tap a spot to walk there. With the map focused, use the arrow keys or W A S D to walk, Enter to use the coffee machine or plant when next to it, 1 to 4 for reactions and Escape to move focus off the map. Everything is also available in the people and places list.') }}
 		</p>
 	</div>
 </template>

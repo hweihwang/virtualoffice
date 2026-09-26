@@ -54,7 +54,7 @@ interface ActorElements {
 
 export interface RendererOptions {
 	zoneLabels: Record<string, string>
-	youLabel: string
+	youName: (name: string) => string
 	/** Label of an office status, e.g. "Do not disturb". */
 	statusLabel: (status: string) => string
 	reducedMotion: () => boolean
@@ -326,7 +326,7 @@ export class SceneRenderer {
 				.map((facing) => `<div class="vo-facing vo-facing-${facing}">${creatureSvg(person.appearance, facing)}</div>`).join('')
 		}
 		actor.signature = signature
-		actor.name.textContent = person.isYou ? `${person.name} (${this.options.youLabel})` : person.name
+		actor.name.textContent = person.isYou ? this.options.youName(person.name) : person.name
 		actor.mode.dataset.mode = person.mode
 		actor.root.dataset.mode = person.mode
 		actor.root.classList.toggle('vo-sleeping', person.status?.status === 'away')

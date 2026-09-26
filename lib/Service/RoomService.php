@@ -784,10 +784,12 @@ class RoomService {
 	private function removePresence(Office $office, Presence $row, string $reason, array $extraRecipients = []): void {
 		$this->presenceMapper->delete($row);
 		$this->queue($office, ['kind' => 'remove', 'uid' => $row->getUid(), 'reason' => $reason], $extraRecipients);
-		$focus = $this->focusState($office, $this->clock->nowMs());
-		if ($focus !== null && in_array($row->getUid(), $focus['uids'], true)) {
+		$focus = json_decode($office->getRoomState(), true)['focus'] ?? null;
+		if (is_array($focus) && in_array($row->getUid(), $focus['uids'] ?? [], true)) {
+			// An ended session is dropped entirely, so no member list outlives it.
+			$running = $this->focusState($office, $this->clock->nowMs()) !== null;
 			$focus['uids'] = array_values(array_diff($focus['uids'], [$row->getUid()]));
-			$this->saveFocus($office, $focus['uids'] === [] ? null : $focus);
+			$this->saveFocus($office, $running && $focus['uids'] !== [] ? $focus : null);
 		}
 	}
 
@@ -953,7 +955,7 @@ class RoomService {
 	}
 
 	/**
-	 * A free cell next to someone in the zone with the most people, or at
+	 * A free cell close to someone in the zone with the most people, or at
 	 * the coffee corner when the office is empty.
 	 *
 	 * @param list<Presence> $present
@@ -965,7 +967,13 @@ class RoomService {
 		$byZone = [];
 		foreach ($present as $row) {
 			$cell = $this->movement->restingCell($row->getTrajectoryData(), $now);
-			$occupied[$cell[0] . ':' . $cell[1]] = true;
+			// A character reaches above its cell and its name tag below and to
+			// the sides, so two cells around someone count as taken too.
+			foreach ([-2, -1, 0, 1, 2] as $dx) {
+				foreach ([-2, -1, 0, 1, 2] as $dy) {
+					$occupied[($cell[0] + $dx) . ':' . ($cell[1] + $dy)] = true;
+				}
+			}
 			$byZone[$this->catalog->zoneAt($layout, $cell[0], $cell[1]) ?? ''][] = $cell;
 		}
 		uasort($byZone, static fn (array $a, array $b) => count($b) <=> count($a));

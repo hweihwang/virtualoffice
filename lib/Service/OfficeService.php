@@ -211,7 +211,7 @@ class OfficeService {
 	public function create(IUser $user, mixed $title, mixed $audience, mixed $managerUid): Office {
 		$title = $this->cleanTitle($title);
 		if (!is_array($audience) || !is_string($audience['kind'] ?? null) || !is_string($audience['id'] ?? null)) {
-			throw ApiException::invalid('Choose who the office is for');
+			throw ApiException::invalid($this->l10n->t('Choose who the office is for'));
 		}
 		$kind = $audience['kind'];
 		$id = $audience['id'];
@@ -231,7 +231,7 @@ class OfficeService {
 					throw ApiException::denied();
 				}
 				if (!$this->groupManager->groupExists($id)) {
-					throw ApiException::invalid('Unknown group');
+					throw ApiException::invalid($this->l10n->t('This group does not exist'));
 				}
 				$managers = $this->initialManagers($managerUid, fn (string $uid) => $this->groupManager->isInGroup($uid, $id));
 				break;
@@ -245,7 +245,7 @@ class OfficeService {
 				$managers = $this->initialManagers($managerUid, fn (string $uid) => true);
 				break;
 			default:
-				throw ApiException::invalid('Choose who the office is for');
+				throw ApiException::invalid($this->l10n->t('Choose who the office is for'));
 		}
 
 		return $this->mapper->insert($this->newOffice($kind, $id, $title, $managers, $user));
@@ -285,7 +285,7 @@ class OfficeService {
 		}
 		$config = $office->getConfigData();
 		if ($office->getAudienceKind() === AccessPolicy::KIND_TALK && (array_key_exists('title', $patch) || array_key_exists('talk', $patch))) {
-			throw ApiException::invalid('A conversation office keeps the conversation name and link');
+			throw ApiException::invalid($this->l10n->t('A conversation office keeps the conversation name and link'));
 		}
 		if (array_key_exists('title', $patch)) {
 			$office->setTitle($this->cleanTitle($patch['title']));
@@ -319,14 +319,14 @@ class OfficeService {
 		$this->accessPolicy->assertCanManage($user, $office);
 		$target = is_string($uid) ? $this->userManager->get($uid) : null;
 		if ($target === null || !$this->accessPolicy->isMember($target, $office)) {
-			throw ApiException::invalid('Managers must belong to the office audience');
+			throw ApiException::invalid($this->l10n->t('Managers must have access to the office'));
 		}
 		$managers = $office->getManagerList();
 		if (in_array($target->getUID(), $managers, true)) {
 			return $office;
 		}
 		if (count($managers) >= self::MAX_MANAGERS) {
-			throw ApiException::invalid('An office can have up to 20 managers');
+			throw ApiException::invalid($this->l10n->t('An office can have up to %d managers', [self::MAX_MANAGERS]));
 		}
 		$managers[] = $target->getUID();
 		$office->setManagers(json_encode($managers, JSON_THROW_ON_ERROR));
@@ -523,7 +523,7 @@ class OfficeService {
 	private function initialManagers(mixed $uid, callable $isMember): array {
 		$target = is_string($uid) && $uid !== '' ? $this->userManager->get($uid) : null;
 		if ($target === null || !$target->isEnabled() || !$isMember($target->getUID())) {
-			throw ApiException::invalid('Choose a manager who belongs to the audience');
+			throw ApiException::invalid($this->l10n->t('Choose a manager who has access to the office'));
 		}
 		return [$target->getUID()];
 	}
@@ -531,11 +531,11 @@ class OfficeService {
 	/** @throws ApiException */
 	private function cleanTitle(mixed $title): string {
 		if (!is_string($title)) {
-			throw ApiException::invalid('Give the office a name');
+			throw ApiException::invalid($this->l10n->t('Give the office a name'));
 		}
 		$title = trim((string)preg_replace('/[\p{Cc}\p{Cf}]/u', '', $title));
 		if ($title === '' || mb_strlen($title) > 120) {
-			throw ApiException::invalid('Office names have 1 to 120 characters');
+			throw ApiException::invalid($this->l10n->t('Office names have 1 to 120 characters'));
 		}
 		return $title;
 	}

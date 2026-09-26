@@ -6,7 +6,7 @@ SPDX-PackageSupplier = "Hoang Pham"
 SPDX-PackageDownloadLocation = "https://github.com/hweihwang/virtualoffice"
 
 [[annotations]]
-path = ["package-lock.json", "package.json", "composer.json", "composer.lock", "tsconfig.json", "catalog/catalog.json", "img/**", "docs/screenshots/**"]
+path = ["package-lock.json", "package.json", "composer.json", "composer.lock", "tsconfig.json", "catalog/catalog.json", "img/**", "docs/screenshots/**", "docs/media/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Hoang Pham"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
