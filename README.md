@@ -8,7 +8,7 @@
 
 Virtual Office gives a Nextcloud Team, a group or a Talk conversation a small shared office. Everyone who belongs to it can see who is there, step in as a character and say hi before starting a call.
 
-[Get it from the App Store](https://apps.nextcloud.com/apps/virtualoffice) · [Watch the 36-second demo](https://hweihwang.github.io/virtualoffice/#demo) · [Admin guide](docs/admin.md)
+The App Store listing is coming soon. [Watch the 36-second demo](https://hweihwang.github.io/virtualoffice/#demo) · [Admin guide](docs/admin.md)
 
 ![The Studio office: Bảo and Alice at the coffee corner, Chi and Emil focusing at their desks, and Dana's desk with her note while she is out](docs/screenshots/office.png)
 
@@ -36,7 +36,7 @@ Without Client Push, browsers check for changes about once a second. The [admin 
 
 ## Getting started
 
-1. Install Virtual Office from the [App Store](https://apps.nextcloud.com/apps/virtualoffice), then open **Office** from the app menu.
+1. Once the App Store listing is live, install Virtual Office there, then open **Office** from the app menu.
 2. Create an office for one of your Teams, or open one from a Talk conversation. Admins can also create group offices and offices for everyone.
 3. Choose your character and select **Enter office**.
 4. Click or tap a spot to walk there, or use the people and places list.

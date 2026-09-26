@@ -68,8 +68,8 @@ See the [App Store developer guide](https://nextcloudappstore.readthedocs.io/en/
 
 ## Public pages and launch
 
-The repository is public, with the description, homepage and topics from [launch-copy.md](launch-copy.md), private vulnerability reporting for [SECURITY.md](../SECURITY.md), and GitHub Pages from the `main` branch's `/docs` folder. GitHub has no API for the social preview, so upload [social-preview.png](media/social-preview.png) once in **Settings › General › Social preview**. After changing the landing page, check it on desktop and mobile, including video playback.
+The repository is public, with the description, homepage and topics from [launch-copy.md](launch-copy.md), private vulnerability reporting for [SECURITY.md](../SECURITY.md), and GitHub Pages from the `main` branch's `/docs` folder. The [social preview](media/social-preview.png) is uploaded in **Settings › General › Social preview**; upload it again if the image changes. After changing the landing page, check it on desktop and mobile, including video playback.
 
 The [36-second demo](media/demo.mp4) is ready for the landing page. To show it in the App Store gallery, upload it to PeerTube and add its public HTTPS URL as a `<video>` element in `appinfo/info.xml` **before** packaging and signing. The App Store does not accept YouTube links in that field. If no PeerTube account is available, the three screenshots remain the gallery; the landing page still shows the demo.
 
-After the App Store release is live, check the installation link in the README and landing page, then use the ready [launch copy](launch-copy.md) for the announcement.
+After the App Store release is live, replace the pending-listing text in the README and landing page with links to the live listing, check those links, then use the ready [launch copy](launch-copy.md) for the announcement.

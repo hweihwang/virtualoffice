@@ -70,7 +70,7 @@ const card = `
 `
 await render(resolve(src, 'intro.png'), 1280, 800, `<div class="card"><div class="brand"><img src="${icon}" width="48" height="48">Virtual Office</div><h1>See who's around.<br>Drop by.</h1><p>A small shared office in Nextcloud.</p></div>`, card)
 await render(resolve(src, 'bridge.png'), 1280, 800, '<div class="card"><h1>Or step into<br>the full office.</h1></div>', card)
-await render(resolve(src, 'outro.png'), 1280, 800, `<div class="card"><div class="brand"><img src="${icon}" width="48" height="48">Virtual Office</div><h1>Free and open source<br>for Nextcloud 35.</h1><p>apps.nextcloud.com/apps/virtualoffice</p></div>`, card)
+await render(resolve(src, 'outro.png'), 1280, 800, `<div class="card"><div class="brand"><img src="${icon}" width="48" height="48">Virtual Office</div><h1>Free and open source<br>for Nextcloud 35.</h1><p>github.com/hweihwang/virtualoffice</p></div>`, card)
 await render(resolve(docs, 'media/social-preview.png'), 1280, 640, `
 	<div class="text">
 		<div class="brand"><img src="${icon}" width="40" height="40">Virtual Office</div>
