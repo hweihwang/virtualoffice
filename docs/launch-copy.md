@@ -4,47 +4,61 @@
 -->
 # Launch copy
 
-Use these after the public repository and the App Store page are live. Open every link before posting.
+Ready-to-post text for the launch. Open every link before posting. Until the App Store listing is live, use the website and GitHub links only.
 
 ## Tagline
 
 See who's around. Drop by.
 
+## One line
+
+A small shared office for Nextcloud Teams, groups and Talk conversations.
+
 ## GitHub About
 
-A small shared office for Nextcloud Teams, groups and Talk conversations. See who's around and say hi before you start a call.
+A small shared office for Nextcloud Teams, groups and Talk conversations. See who's around and drop by before you start a call.
+
+Website: https://hweihwang.com/virtualoffice/
 
 Topics: `nextcloud`, `nextcloud-app`, `nextcloud-talk`, `virtual-office`, `remote-work`, `presence`
 
-## Short post
+## Short post (Mastodon, Bluesky, LinkedIn)
 
-Virtual Office gives your Nextcloud Team or Talk group chat a small shared office. See who's there, step in as a character, wave or make a coffee together, and knock to ask “got 2 minutes?” before a call. Free and open source, for Nextcloud 35.
+Virtual Office gives your Nextcloud Team or Talk group chat a small shared office. See who's in, step in as a character, make a coffee together, and knock to ask “got 2 minutes?” before a call. No extra server, and no history of who was where.
 
-https://apps.nextcloud.com/apps/virtualoffice
+Free and open source, for Nextcloud 35: https://hweihwang.com/virtualoffice/
 
-## Longer announcement
+## Very short post (X)
+
+See who's around. Drop by. Virtual Office is a small shared office for your Nextcloud Team or Talk chat. Free and open source. https://hweihwang.com/virtualoffice/
+
+## Longer announcement (forum, blog)
 
 Remote teams lose the small moments: seeing that someone is around, asking a quick question, having a coffee together. Virtual Office brings a little of that back, inside Nextcloud.
 
-A Team, a group or a Talk conversation gets a small shared office. Everyone who belongs to it can see who is there and step in as a character. You can open a conversation's office from any Talk message menu and use it right in the chat, or open the full office.
+A Team, a group or a Talk conversation gets a small shared office. Everyone who belongs to it can see who is there and step in as a character: a rabbit, a cat, a bear or a bird, in your color. You can open a conversation's office from any Talk message menu and use it right in the chat, or open the full office.
 
-Inside, you can walk over to a colleague, wave, make a coffee together, or knock to ask “got 2 minutes?”. Claim a desk and leave a short note about your day. Start a 25 minute focus session that others can join, or sign up for a weekly coffee roulette.
+Inside, you walk over to a colleague, wave, or make a coffee together. Knock to ask “got 2 minutes?”, and they answer Now, In 10 minutes or Later. Claim a desk that shows your status and a short note while you are out. Start a 25 minute focus session that others can join, or sign up for a weekly coffee roulette.
 
-Opening an office never makes you visible; you choose when to enter. Only members can enter, and Virtual Office keeps no history of visits or movement. It runs on Nextcloud 35 with no extra server.
+Opening an office never makes you visible; you choose when to enter. Only members can enter, and Virtual Office keeps no history of visits or movement. It runs on Nextcloud 35 with no extra server, and works with a mouse, touch, the keyboard or a screen reader.
 
-Install it from the App Store: https://apps.nextcloud.com/apps/virtualoffice
+Website and film: https://hweihwang.com/virtualoffice/
 Source and admin guide: https://github.com/hweihwang/virtualoffice
 
-## Demo description
+## Film description
 
-A Talk group chat with its office card. Alice steps in from the chat, then opens the full office, says hi to Bảo, makes a coffee with him, knocks on Chi and joins a focus session. Recorded on a Nextcloud 35 test instance with test accounts.
+A slow look around The Studio, a small shared office in Nextcloud. It starts with two people clinking coffee cups, pulls back past a wave, a knock and a desk note to the whole office, and ends on the office card inside a Talk conversation. Made from the office's own artwork.
 
 ## Screenshot captions
 
-1. The Studio: a Team office with people at the coffee corner, two colleagues focusing at their desks, and a desk that shows its owner's note while she is out.
+1. The Studio: a Team office. Alice and Bảo high-five at the coffee corner, Fern waters the plant, Chi and Emil focus at their desks, and Dana's desk shows her note while she is out.
 2. A Talk conversation with an interactive office card.
-3. The Dashboard widget shows who is in your offices.
+3. Pick your character: four creatures, eight colors and five accessory choices.
+4. The same office in Nextcloud's dark theme.
+5. The Dashboard widget shows who is in your offices.
 
 ## Name and brand
 
-The app name is Virtual Office. Say “for Nextcloud” where it helps. Do not suggest that it is an official Nextcloud app, and do not use the Nextcloud logo. The App Store page and the GitHub repository are the two primary links; the landing page is a visual introduction.
+The app name is Virtual Office. Say “for Nextcloud” where it helps. Do not suggest that it is an official Nextcloud app, and do not use the Nextcloud logo in our own graphics. The logo is [media/logo.svg](media/logo.svg): a room seen from above, two people at a table and one stepping through the door. Its colors are blue `#1596dc` to `#0b4f82`, with an apricot table `#ffb57e`. Headlines use Fraunces, text uses Source Sans 3.
+
+The website is the visual introduction; the GitHub repository and, once live, the App Store page are where people install and get help.

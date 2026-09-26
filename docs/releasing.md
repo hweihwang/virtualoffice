@@ -9,7 +9,7 @@ The release archive is a custom tarball with one top-level `virtualoffice/` dire
 ## Prepare
 
 1. Choose the release version in `package.json` and `appinfo/info.xml`. Add a matching `## <version>` entry to `CHANGELOG.md`.
-2. Review the app metadata, links, screenshots, license notices, and changes since the previous release. When the interface changed, rebuild the screenshots, the social preview and the demo video with `scripts/marketing/build.sh`; it resets the test fixture and needs ffmpeg, cwebp and ImageMagick. Check every image and the video before committing them.
+2. Review the app metadata, links, screenshots, license notices, and changes since the previous release. When the interface changed, rebuild the screenshots, the social preview and the product page assets with `scripts/marketing/build.sh`; it resets the test fixture and needs ffmpeg, cwebp and ImageMagick. When the office artwork changed, render the film again with `node scripts/marketing/film/render.mjs`. Check every image and the film before committing them.
 3. Run the checks and build from a clean checkout:
 
    ```sh
@@ -68,8 +68,10 @@ See the [App Store developer guide](https://nextcloudappstore.readthedocs.io/en/
 
 ## Public pages and launch
 
-The repository is public, with the description, homepage and topics from [launch-copy.md](launch-copy.md), private vulnerability reporting for [SECURITY.md](../SECURITY.md), and GitHub Pages from the `main` branch's `/docs` folder. The [social preview](media/social-preview.png) is uploaded in **Settings › General › Social preview**; upload it again if the image changes. After changing the landing page, check it on desktop and mobile, including video playback.
+The repository is public, with the description, homepage and topics from [launch-copy.md](launch-copy.md), private vulnerability reporting for [SECURITY.md](../SECURITY.md), and GitHub Pages from the `main` branch's `/docs` folder, which now only forwards to the product page. The [social preview](media/social-preview.png) is uploaded in **Settings › General › Social preview**; upload it again if the image changes.
 
-The [36-second demo](media/demo.mp4) is ready for the landing page. To show it in the App Store gallery, upload it to PeerTube and add its public HTTPS URL as a `<video>` element in `appinfo/info.xml` **before** packaging and signing. The App Store does not accept YouTube links in that field. If no PeerTube account is available, the three screenshots remain the gallery; the landing page still shows the demo.
+The product page is https://hweihwang.com/virtualoffice/, in the hweihwang.com repository. To update it, copy `build/marketing/site/*` (written by `scripts/marketing/render.mjs`, including the film from `build/film/`) into its `virtualoffice/` folder, then deploy that repository. Check the page on desktop and mobile, including film playback.
 
-After the App Store release is live, replace the pending-listing text in the README and landing page with links to the live listing, check those links, then use the ready [launch copy](launch-copy.md) for the announcement.
+The film plays on the product page. To show it in the App Store gallery, upload it to PeerTube and add its public HTTPS URL as a `<video>` element in `appinfo/info.xml` **before** packaging and signing. The App Store does not accept YouTube links in that field. If no PeerTube account is available, the five screenshots remain the gallery.
+
+After the App Store release is live, replace the pending-listing text in the README, `docs/admin.md` and the product page with links to the live listing, check those links, then use the ready [launch copy](launch-copy.md) for the announcement.

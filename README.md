@@ -2,15 +2,17 @@
   - SPDX-FileCopyrightText: 2026 Hoang Pham
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
-# Virtual Office
+<p align="center"><img src="docs/media/logo.svg" width="88" height="88" alt=""></p>
 
-**See who's around. Drop by.**
+<h1 align="center">Virtual Office</h1>
 
-Virtual Office gives a Nextcloud Team, a group or a Talk conversation a small shared office. Everyone who belongs to it can see who is there, step in as a character and say hi before starting a call.
+<p align="center"><strong>See who's around. Drop by.</strong><br>A small shared office for Nextcloud Teams, groups and Talk conversations.</p>
 
-The App Store listing is coming soon. [Watch the 36-second demo](https://hweihwang.github.io/virtualoffice/#demo) · [Admin guide](docs/admin.md)
+<p align="center"><a href="https://hweihwang.com/virtualoffice/">Website</a> · <a href="https://hweihwang.com/virtualoffice/#film">Watch the film</a> · <a href="docs/admin.md">Admin guide</a> · <a href="CHANGELOG.md">What's in 1.0</a><br><sub>Free and open source for Nextcloud 35. The App Store listing is coming soon.</sub></p>
 
-![The Studio office: Bảo and Alice at the coffee corner, Chi and Emil focusing at their desks, and Dana's desk with her note while she is out](docs/screenshots/office.png)
+![The Studio office: Alice and Bảo high-five at the coffee corner, Fern waters the plant, Chi and Emil focus at their desks, and Dana's desk shows her note while she is out](docs/screenshots/office.png)
+
+Virtual Office gives a Nextcloud Team, a group or a Talk conversation a small shared office. Everyone who belongs to it can see who is there, step in as a character and say hi before anyone has to start a call.
 
 ## What you can do
 
@@ -21,7 +23,11 @@ The App Store listing is coming soon. [Watch the 36-second demo](https://hweihwa
 - **Find it where you work.** The Dashboard widget shows who is in your offices. Offices also show up in search, the Smart Picker and on Team pages, and Team offices show what is shared with the Team.
 - **Make it yours.** Pick a rabbit, cat, bear or bird, then a color and an accessory.
 
-![A Talk conversation with an interactive office card](docs/screenshots/talk.png)
+![A Talk conversation with an interactive office card: Alice has stepped in and waves, and everyone else in the office is on the map](docs/screenshots/talk.png)
+
+| Pick your character | Light or dark, like the rest of Nextcloud |
+|---|---|
+| ![The character picker: four creatures, eight colors and five accessory choices, with a live preview](docs/screenshots/character.png) | ![The Studio in Nextcloud's dark theme](docs/screenshots/office-dark.png) |
 
 ## Privacy
 
@@ -61,7 +67,8 @@ tests/fixture/setup.sh push   # Nextcloud 35, PostgreSQL, Talk and Client Push o
 | Types and lint | `npm run typecheck && npm run lint` |
 | API and browser end-to-end | `npm run test:e2e` (use `VO_TRANSPORT=polling` after `tests/fixture/setup.sh polling`) |
 | Load | `npm run test:load -- --people 32 --seconds 60 --mode push` |
-| Screenshots, social preview and demo video | `scripts/marketing/build.sh` |
+| Screenshots, social preview and product page assets | `scripts/marketing/build.sh` |
+| Launch film | `node scripts/marketing/film/render.mjs` |
 | Release archive | `npm run package` (unsigned, for testing) |
 | Signed release | `scripts/sign-release.sh ~/.nextcloud/certificates` |
 
@@ -69,6 +76,6 @@ The [developer guide](docs/architecture.md) explains the architecture and the re
 
 ## License
 
-AGPL-3.0-or-later. Bundled libraries keep their own licenses, listed next to each file in `js/*.license`, with texts in `LICENSES/`. The icons and the office scene are original SVG artwork in `img/` and `src/scene/`. The screenshots show test accounts on a test instance.
+AGPL-3.0-or-later. Bundled libraries keep their own licenses, listed next to each file in `js/*.license`, with texts in `LICENSES/`. The logo, the icons and the office scene are original SVG artwork in `docs/media/`, `img/` and `src/scene/`. The fonts used to render the marketing assets, in `scripts/marketing/film/fonts/`, are under the SIL Open Font License and are not part of the app. The screenshots show test accounts on a test instance.
 
 Virtual Office is a community app. It is not made or endorsed by Nextcloud GmbH.
