@@ -1,0 +1,635 @@
+/**
+ * SPDX-FileCopyrightText: 2026 Hoang Pham
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+.vo-scene {
+	position: relative;
+	outline: none;
+	border-radius: var(--border-radius-container-large, 16px);
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: thin;
+	background: #dceffa;
+	box-shadow: 0 0 0 1px var(--color-border);
+}
+
+:where([data-theme-dark], [data-theme-dark-highcontrast]) .vo-scene {
+	background: #0e3552;
+}
+
+:where([data-theme-dark], [data-theme-dark-highcontrast]) .vo-background {
+	filter: brightness(.8) saturate(.95);
+}
+
+.vo-scene:focus-visible {
+	box-shadow: 0 0 0 2px var(--color-main-background), 0 0 0 4px var(--color-primary-element);
+}
+
+.vo-viewport {
+	position: relative;
+	width: var(--vo-stage-width);
+}
+
+.vo-stage {
+	position: relative;
+	transform-origin: 0 0;
+	cursor: pointer;
+	user-select: none;
+	touch-action: pan-x;
+}
+
+.vo-background, .vo-background svg {
+	position: absolute;
+	inset: 0;
+	display: block;
+}
+
+.vo-map .vo-furniture {
+	filter: drop-shadow(0 3px 1px #16435f35);
+}
+
+.vo-zone-labels, .vo-props, .vo-fixtures, .vo-desks, .vo-actors, .vo-pairs {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.vo-actors .vo-actor {
+	pointer-events: auto;
+}
+
+.vo-zone-label {
+	position: absolute;
+	transform: translateX(-50%);
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 9px;
+	border-radius: 999px;
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	box-shadow: 0 2px 4px #16435f33;
+	font-size: 13px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.vo-zone-label::before {
+	content: '';
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: #0082c9;
+}
+
+.vo-zone-label[data-zone='coffee']::before { background: #f19b57; }
+.vo-zone-label[data-zone='entrance']::before { background: #5eb998; }
+.vo-zone-label[data-zone='focus']::before { background: #8275ca; }
+
+.vo-actor {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 48px;
+	height: 58px;
+	will-change: transform;
+}
+
+.vo-shadow {
+	position: absolute;
+	left: 6px;
+	bottom: 0;
+	width: 36px;
+	height: 9px;
+	border-radius: 50%;
+	background: #16435f38;
+}
+
+.vo-sprite {
+	position: absolute;
+	left: 0;
+	bottom: 2px;
+	width: 48px;
+	height: 56px;
+	transform: scale(1.45);
+	transform-origin: center bottom;
+}
+
+.vo-facing {
+	position: absolute;
+	inset: 0;
+	display: none;
+}
+
+.vo-sprite[data-facing='south'] .vo-facing-south,
+.vo-sprite[data-facing='north'] .vo-facing-north,
+.vo-sprite[data-facing='east'] .vo-facing-east,
+.vo-sprite[data-facing='west'] .vo-facing-east {
+	display: block;
+}
+
+.vo-sprite[data-facing='west'] .vo-facing-east {
+	transform: scaleX(-1);
+}
+
+.vo-creature {
+	display: block;
+	overflow: visible;
+}
+
+.vo-walking .vo-creature .vo-body {
+	animation: vo-bob 250ms ease-in-out infinite;
+}
+
+.vo-walking .vo-foot-l {
+	animation: vo-step 250ms steps(1) infinite;
+}
+
+.vo-walking .vo-foot-r {
+	animation: vo-step 250ms steps(1) infinite reverse;
+}
+
+@keyframes vo-bob {
+	0%, 100% { transform: translateY(0); }
+	50% { transform: translateY(-2px); }
+}
+
+@keyframes vo-step {
+	0% { transform: translateY(-2.5px); }
+	50% { transform: translateY(0); }
+}
+
+.vo-actor[data-mode='away'] .vo-sprite {
+	opacity: .55;
+}
+
+.vo-nameplate {
+	position: absolute;
+	left: 50%;
+	top: 60px;
+	transform: translateX(-50%);
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	max-width: 180px;
+	padding: 1px 8px;
+	border-radius: 999px;
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 18px;
+	white-space: nowrap;
+	box-shadow: 0 1px 2px #0000002e;
+}
+
+.vo-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vo-you .vo-nameplate {
+	background: var(--color-primary-element);
+	color: var(--color-primary-element-text);
+}
+
+/* Nextcloud status: nothing for online, like the status menu. */
+.vo-status {
+	display: none;
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+}
+
+.vo-status[data-status='away'] { display: inline-block; background: #f4a331; }
+.vo-status[data-status='dnd'] { display: inline-block; background: #ed484c; }
+.vo-status[data-status='busy'] { display: inline-block; background: #db0606; box-shadow: inset 0 0 0 2px #fff; }
+
+/* Birthday: a balloon tied to the character, when they share their birth date. */
+.vo-balloon {
+	position: absolute;
+	left: -12px;
+	top: -26px;
+	display: none;
+	width: 26px;
+	height: 26px;
+}
+
+.vo-balloon svg {
+	width: 26px;
+	height: 26px;
+	fill: #e0565b;
+}
+
+.vo-birthday .vo-balloon {
+	display: block;
+	animation: vo-float 3s ease-in-out infinite;
+}
+
+@keyframes vo-float {
+	0%, 100% { transform: translateY(0) rotate(-4deg); }
+	50% { transform: translateY(-4px) rotate(4deg); }
+}
+
+.vo-focus-badge {
+	display: none;
+	flex: none;
+	width: 13px;
+	height: 13px;
+}
+
+.vo-focus-badge svg {
+	width: 13px;
+	height: 13px;
+	fill: #7a5bc4;
+}
+
+.vo-focusing .vo-focus-badge {
+	display: inline-block;
+}
+
+.vo-sleep {
+	position: absolute;
+	right: -6px;
+	top: -4px;
+	display: none;
+	width: 20px;
+	height: 20px;
+}
+
+.vo-sleep svg {
+	width: 20px;
+	height: 20px;
+	fill: #6b7fae;
+}
+
+.vo-sleeping .vo-sleep {
+	display: block;
+	animation: vo-doze 2.4s ease-in-out infinite;
+}
+
+.vo-sleeping .vo-sprite {
+	filter: saturate(.6);
+}
+
+@keyframes vo-doze {
+	0%, 100% { transform: translateY(0); opacity: .6; }
+	50% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* A Team resource on the wall: a framed icon with its name below. */
+.vo-fixture {
+	position: absolute;
+	transform: translateX(-50%);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	width: 38px;
+	pointer-events: auto;
+	color: inherit;
+	text-decoration: none;
+}
+
+.vo-fixture-icon {
+	display: grid;
+	place-items: center;
+	width: 30px;
+	height: 30px;
+	border: 2px solid #0082c9;
+	border-radius: 6px;
+	background: var(--color-main-background);
+	font-size: 18px;
+	box-shadow: 0 2px 3px #00000033;
+	transition: transform 150ms;
+}
+
+.vo-fixture-icon img {
+	width: 20px;
+	height: 20px;
+	border-radius: 3px;
+}
+
+.vo-fixture:hover .vo-fixture-icon,
+.vo-fixture:focus-visible .vo-fixture-icon {
+	transform: translateY(-2px) scale(1.08);
+}
+
+.vo-fixture-label {
+	max-width: 76px;
+	margin-top: 2px;
+	padding: 0 4px;
+	border-radius: 4px;
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	font-size: 10px;
+	font-weight: 600;
+	line-height: 14px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vo-fixture-badge {
+	position: absolute;
+	top: -6px;
+	right: -8px;
+	min-width: 16px;
+	padding: 0 4px;
+	border-radius: 999px;
+	background: #e0565b;
+	color: #fff;
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 16px;
+	text-align: center;
+}
+
+.vo-desk {
+	position: absolute;
+	transform: translate(-50%, -100%);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	max-width: 150px;
+	pointer-events: auto;
+	cursor: default;
+}
+
+.vo-desk-name {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	max-width: 100%;
+	padding: 0 6px;
+	border-radius: 6px;
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 16px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	box-shadow: 0 1px 2px #0000002e;
+}
+
+.vo-desk:not(.vo-desk-away) .vo-desk-name {
+	opacity: .7;
+}
+
+.vo-desk-note {
+	max-width: 100%;
+	padding: 1px 6px;
+	border-radius: 6px;
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	font-size: 11px;
+	line-height: 15px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	box-shadow: 0 1px 2px #0000002e;
+}
+
+.vo-call-badge {
+	display: none;
+	flex: none;
+	width: 14px;
+	height: 14px;
+}
+
+.vo-call-badge svg {
+	width: 14px;
+	height: 14px;
+	fill: currentColor;
+}
+
+.vo-in-call .vo-call-badge {
+	display: inline-block;
+}
+
+.vo-mode {
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #49b36b;
+}
+
+.vo-mode[data-mode='focus'] {
+	background: #e0565b;
+	border-radius: 2px;
+}
+
+.vo-mode[data-mode='away'] {
+	background: transparent;
+	box-shadow: inset 0 0 0 2px #b58f2d;
+}
+
+.vo-emote {
+	position: absolute;
+	left: 50%;
+	top: -30px;
+	width: 34px;
+	height: 34px;
+	margin-left: -17px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	background: var(--color-main-background);
+	box-shadow: 0 2px 6px #00000033;
+	opacity: 0;
+	transform: scale(.4) translateY(10px);
+	transition: opacity 150ms, transform 200ms cubic-bezier(.3, 1.6, .5, 1);
+}
+
+.vo-emote.vo-visible {
+	opacity: 1;
+	transform: scale(1) translateY(0);
+}
+
+.vo-emote svg {
+	width: 22px;
+	height: 22px;
+	fill: #e0565b;
+}
+
+.vo-emote[data-emote='wave'] svg { fill: #d9934a; }
+.vo-emote[data-emote='laugh'] svg { fill: #d3a322; }
+.vo-emote[data-emote='celebrate'] svg { fill: #7a5bc4; }
+
+.vo-emote.vo-visible[data-emote='wave'] svg { animation: vo-wave 600ms ease-in-out 3; transform-origin: 70% 80%; }
+.vo-emote.vo-visible[data-emote='heart'] svg { animation: vo-pulse 700ms ease-in-out 3; }
+
+@keyframes vo-wave {
+	0%, 100% { transform: rotate(0); }
+	25% { transform: rotate(-18deg); }
+	75% { transform: rotate(14deg); }
+}
+
+@keyframes vo-pulse {
+	0%, 100% { transform: scale(1); }
+	50% { transform: scale(1.2); }
+}
+
+.vo-pairs {
+	z-index: 1000;
+}
+
+/* Two people reacting together: one bigger badge between them. */
+.vo-pair {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 44px;
+	height: 44px;
+	margin: -70px 0 0 2px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	background: var(--color-main-background);
+	box-shadow: 0 0 0 3px #ffd84d, 0 3px 10px #00000040;
+	animation: vo-pop 400ms cubic-bezier(.3, 1.6, .5, 1);
+}
+
+.vo-pair svg {
+	width: 28px;
+	height: 28px;
+	fill: #d9934a;
+	animation: vo-pulse 700ms ease-in-out 3;
+}
+
+.vo-pair[data-emote='heart'] svg { fill: #e0565b; }
+.vo-pair[data-emote='laugh'] svg { fill: #d3a322; }
+.vo-pair[data-emote='celebrate'] svg { fill: #7a5bc4; }
+
+@keyframes vo-pop {
+	from { transform: scale(.3); opacity: 0; }
+}
+
+.vo-prop-fx {
+	position: absolute;
+	width: 40px;
+	height: 40px;
+}
+
+.vo-prop-coffee span {
+	position: absolute;
+	left: 20px;
+	top: -12px;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: #ffffffcc;
+	opacity: 0;
+}
+
+.vo-prop-coffee.vo-active span { animation: vo-steam 1s ease-out infinite; }
+.vo-prop-coffee.vo-active span:nth-child(2) { animation-delay: .33s; left: 14px; }
+.vo-prop-coffee.vo-active span:nth-child(3) { animation-delay: .66s; left: 26px; }
+
+/* Two or more people at the running coffee machine clink cups. */
+.vo-clink-cups {
+	position: absolute;
+	left: 2px;
+	top: -44px;
+	display: flex;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.vo-clink-cups svg {
+	width: 20px;
+	height: 20px;
+	fill: #0082c9;
+	filter: drop-shadow(0 1px 1px #fff);
+}
+
+.vo-prop-coffee.vo-clink .vo-clink-cups { opacity: 1; }
+.vo-prop-coffee.vo-clink .vo-clink-cups svg:first-child { animation: vo-clink-left 700ms ease-in-out infinite; transform-origin: 100% 100%; }
+.vo-prop-coffee.vo-clink .vo-clink-cups svg:last-child { animation: vo-clink-right 700ms ease-in-out infinite; transform-origin: 0 100%; }
+
+@keyframes vo-clink-left {
+	0%, 100% { transform: rotate(0); }
+	50% { transform: translateX(3px) rotate(18deg); }
+}
+
+@keyframes vo-clink-right {
+	0%, 100% { transform: scaleX(-1) rotate(0); }
+	50% { transform: scaleX(-1) translateX(3px) rotate(18deg); }
+}
+
+@keyframes vo-steam {
+	0% { opacity: 0; transform: translateY(0) scale(.6); }
+	30% { opacity: 1; }
+	100% { opacity: 0; transform: translateY(-26px) scale(1.6); }
+}
+
+.vo-prop-plant i {
+	position: absolute;
+	top: -26px;
+	width: 5px;
+	height: 8px;
+	border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+	background: #6fb3e8;
+	opacity: 0;
+}
+
+.vo-prop-plant i:nth-child(1) { left: 8px; }
+.vo-prop-plant i:nth-child(2) { left: 18px; animation-delay: .2s !important; }
+.vo-prop-plant i:nth-child(3) { left: 28px; animation-delay: .4s !important; }
+.vo-prop-plant i:nth-child(4) { left: 14px; animation-delay: .6s !important; }
+.vo-prop-plant.vo-active i { animation: vo-drop .8s ease-in infinite; }
+
+@keyframes vo-drop {
+	0% { opacity: 0; transform: translateY(-10px); }
+	20% { opacity: 1; }
+	100% { opacity: 0; transform: translateY(22px); }
+}
+
+.vo-scene:has(.vo-prop-plant.vo-active) .vo-shared-plant .vo-leaves {
+	animation: vo-sway .5s ease-in-out 4;
+	transform-origin: 0 0;
+	transform-box: fill-box;
+}
+
+@keyframes vo-sway {
+	0%, 100% { transform: rotate(0); }
+	50% { transform: rotate(4deg); }
+}
+
+.vo-bulb {
+	animation: vo-glow 3s ease-in-out infinite alternate;
+}
+
+.vo-bulb:nth-child(odd) { animation-delay: 1.5s; }
+
+@keyframes vo-glow {
+	from { opacity: .65; }
+	to { opacity: 1; }
+}
+
+.vo-reduced .vo-creature .vo-body,
+.vo-reduced .vo-foot,
+.vo-reduced .vo-bulb,
+.vo-reduced .vo-emote svg,
+.vo-reduced .vo-pair,
+.vo-reduced .vo-pair svg,
+.vo-reduced .vo-clink-cups svg,
+.vo-reduced .vo-sleep,
+.vo-reduced .vo-balloon,
+.vo-reduced .vo-leaves {
+	animation: none !important;
+}
+
+.vo-reduced .vo-emote {
+	transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.vo-creature .vo-body, .vo-foot, .vo-bulb, .vo-emote svg, .vo-pair, .vo-pair svg, .vo-clink-cups svg, .vo-sleep, .vo-balloon, .vo-leaves {
+		animation: none !important;
+	}
+}

@@ -1,0 +1,54 @@
+{
+	"name": "virtualoffice",
+	"version": "1.0.0",
+	"private": true,
+	"description": "A small shared office in Nextcloud. See who's around and drop by.",
+	"license": "AGPL-3.0-or-later",
+	"type": "module",
+	"engines": {
+		"node": "^24",
+		"npm": "^11"
+	},
+	"scripts": {
+		"build": "vite --mode production build",
+		"dev": "vite --mode development build",
+		"watch": "vite --mode development build --watch",
+		"typecheck": "vue-tsc --noEmit -p tsconfig.json",
+		"lint": "eslint src shared tests",
+		"test:unit": "vitest run",
+		"test:e2e": "playwright test",
+		"test:load": "node tests/load/room-load.mjs",
+		"package": "node scripts/package.mjs"
+	},
+	"browserslist": [
+		"extends @nextcloud/browserslist-config"
+	],
+	"dependencies": {
+		"@mdi/js": "7.4.47",
+		"@nextcloud/auth": "2.6.0",
+		"@nextcloud/axios": "2.6.0",
+		"@nextcloud/capabilities": "1.2.1",
+		"@nextcloud/dialogs": "7.5.0",
+		"@nextcloud/initial-state": "3.0.0",
+		"@nextcloud/l10n": "3.4.1",
+		"@nextcloud/notify_push": "1.4.0",
+		"@nextcloud/router": "3.2.0",
+		"@nextcloud/vue": "9.13.0",
+		"vue": "3.5.43"
+	},
+	"devDependencies": {
+		"@axe-core/playwright": "^4.13.0",
+		"@nextcloud/browserslist-config": "3.1.2",
+		"@nextcloud/eslint-config": "9.0.1",
+		"@nextcloud/vite-config": "2.5.4",
+		"@playwright/test": "1.63.0",
+		"@types/node": "24.13.6",
+		"@vitejs/plugin-vue": "^6.0.9",
+		"@vue/tsconfig": "0.9.1",
+		"eslint": "10.11.0",
+		"typescript": "5.9.3",
+		"vite": "7.3.6",
+		"vitest": "5.0.1",
+		"vue-tsc": "3.3.11"
+	}
+}

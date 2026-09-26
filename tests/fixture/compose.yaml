@@ -1,0 +1,65 @@
+# SPDX-FileCopyrightText: 2026 Hoang Pham
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Test fixture: Nextcloud 35 + PostgreSQL + Talk + Circles, with Redis and
+# Client Push (notify_push) behind an nginx front proxy on 127.0.0.1:18935.
+# Accounts and passwords here are synthetic and for this fixture only.
+name: virtualoffice-validation
+services:
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: virtualoffice_fixture
+      POSTGRES_USER: virtualoffice_fixture
+      POSTGRES_PASSWORD: virtualoffice-fixture-only
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U virtualoffice_fixture]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7.4-alpine
+  app:
+    image: nextcloud:35-apache@sha256:23c101539e295aaf83888c9c1cae7df3fb6ce80b9ea9310248dad46af8c89936
+    environment:
+      POSTGRES_HOST: database
+      POSTGRES_DB: virtualoffice_fixture
+      POSTGRES_USER: virtualoffice_fixture
+      POSTGRES_PASSWORD: virtualoffice-fixture-only
+      NEXTCLOUD_ADMIN_USER: vo_admin
+      NEXTCLOUD_ADMIN_PASSWORD: virtualoffice-fixture-only
+      NEXTCLOUD_TRUSTED_DOMAINS: localhost 127.0.0.1
+      OVERWRITECLIURL: http://localhost:18935
+      PHP_MEMORY_LIMIT: 512M
+    volumes:
+      - nextcloud:/var/www/html
+      - ../..:/var/www/html/custom_apps/virtualoffice:ro
+      - ./php-dev.ini:/usr/local/etc/php/conf.d/zz-virtualoffice-dev.ini:ro
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_started
+  push:
+    image: nextcloud:35-apache@sha256:23c101539e295aaf83888c9c1cae7df3fb6ce80b9ea9310248dad46af8c89936
+    profiles: [push]
+    user: www-data
+    entrypoint: [sh, -c, 'exec /var/www/html/custom_apps/notify_push/bin/$$(uname -m)/notify_push /var/www/html/config/config.php']
+    environment:
+      PORT: 7867
+      NEXTCLOUD_URL: http://app
+    volumes:
+      - nextcloud:/var/www/html
+    depends_on: [app, redis]
+  proxy:
+    image: nginx:1.29-alpine
+    ports:
+      - 127.0.0.1:18935:80
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [app]
+volumes:
+  database:
+  nextcloud:
