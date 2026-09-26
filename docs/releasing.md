@@ -31,45 +31,44 @@ The release archive is a custom tarball with one top-level `virtualoffice/` dire
 
 ## Certificate
 
-The owner needs a Nextcloud app certificate for the `virtualoffice` app ID. Keep the private key outside this repository, readable only by the owner. Generate a 4096-bit RSA key and CSR with `CN=virtualoffice`, then submit the CSR as `virtualoffice/virtualoffice.csr` to [app-certificate-requests](https://github.com/nextcloud/app-certificate-requests) with a link to the public source repository. The contributor must open this PR and disclose AI assistance in their own words. Nextcloud returns a public `virtualoffice.crt`. Follow the [code-signing guide](https://docs.nextcloud.com/server/stable/developer_manual/app_publishing_maintenance/code_signing.html).
+Signing needs a Nextcloud app certificate for the `virtualoffice` app ID. This is a one-time step. The owner keeps the 4096-bit RSA key, the CSR (`CN=virtualoffice`) and the certificate in `~/.nextcloud/certificates/`, outside this repository and readable only by the owner. The CSR was submitted to [app-certificate-requests](https://github.com/nextcloud/app-certificate-requests/pull/1271); Nextcloud answers with the public `virtualoffice.crt`, which goes next to the key. See the [code-signing guide](https://docs.nextcloud.com/server/stable/developer_manual/app_publishing_maintenance/code_signing.html).
 
 ## Sign the exact release contents
 
-Set `NC_OCC` to the `occ` file of a working Nextcloud installation and `CERT_DIR` to the directory containing `virtualoffice.key` and `virtualoffice.crt`. After the final build and test, extract the unsigned archive, sign the extracted app, and create a new archive:
+After the final build and tests, run:
 
 ```sh
-NC_OCC=/absolute/path/to/nextcloud/occ
-CERT_DIR=/absolute/path/to/certificates
-rm -rf build/release
-mkdir -p build/release
-tar -xzf build/artifacts/virtualoffice-<version>.tar.gz -C build/release
-php "$NC_OCC" integrity:sign-app \
-  --privateKey="$CERT_DIR/virtualoffice.key" \
-  --certificate="$CERT_DIR/virtualoffice.crt" \
-  --path="$PWD/build/release/virtualoffice"
-COPYFILE_DISABLE=1 tar --no-xattrs -czf build/artifacts/virtualoffice-<version>-signed.tar.gz -C build/release virtualoffice
+scripts/sign-release.sh ~/.nextcloud/certificates
 ```
 
-Confirm that the signed tarball contains `virtualoffice/appinfo/signature.json`. Install **that exact tarball** on a clean Nextcloud 35 instance, enable the app, and run `occ integrity:check-app virtualoffice`. Any content change after signing requires signing again.
+The script checks that the certificate belongs to the key, builds and packages the app, signs it with `occ integrity:sign-app` inside the test fixture (removing the key from the container right after), and writes `build/artifacts/virtualoffice-<version>-signed.tar.gz`. It prints the archive's SHA-256, the app-ID signature and the archive signature. Keep the key and both signatures out of Git.
+
+Then install **that exact tarball** on clean Nextcloud 35 instances:
+
+```sh
+tests/fixture/matrix.sh build/artifacts/virtualoffice-<version>-signed.tar.gz
+```
+
+For a signed archive, the matrix also runs `occ integrity:check-app virtualoffice` and fails unless the signature verifies against Nextcloud's root certificate. Any content change after signing requires signing again.
 
 ## Publish
 
-Tag the reviewed source version and attach the signed custom tarball to the GitHub release. Host it at a public HTTPS URL. Do not use GitHub's automatic source archive.
+1. Create the GitHub release `v<version>` from the reviewed commit, with the `CHANGELOG.md` entry as notes, and attach the signed tarball. Its download URL is the public HTTPS URL for the App Store. Do not use GitHub's automatic source archive.
 
-Register `virtualoffice` on the [Nextcloud App Store](https://apps.nextcloud.com/developer/apps/new) with the public certificate and a signature over the app ID. Then [upload the release](https://apps.nextcloud.com/developer/apps/releases/new) with its HTTPS URL and a separate SHA-512 signature over the **exact signed tarball**:
+   ```sh
+   awk '/^## /{p=($2=="<version>")} p' CHANGELOG.md | tail -n +3 > build/notes.md
+   gh release create v<version> build/artifacts/virtualoffice-<version>-signed.tar.gz --target main --title <version> --notes-file build/notes.md
+   ```
 
-```sh
-printf %s virtualoffice | openssl dgst -sha512 -sign "$CERT_DIR/virtualoffice.key" | openssl base64 -A
-openssl dgst -sha512 -sign "$CERT_DIR/virtualoffice.key" build/artifacts/virtualoffice-<version>-signed.tar.gz | openssl base64 -A
-```
+   The download URL is `https://github.com/hweihwang/virtualoffice/releases/download/v<version>/virtualoffice-<version>-signed.tar.gz`.
+2. For the first release only, [register the app](https://apps.nextcloud.com/developer/apps/new) with the contents of `virtualoffice.crt` and the app-ID signature.
+3. [Upload the release](https://apps.nextcloud.com/developer/apps/releases/new) with the tarball's download URL and the archive signature.
 
-Keep the private key and both signatures out of Git. The Store asks for the app-ID signature during registration and the archive signature during release upload. See the [App Store developer guide](https://nextcloudappstore.readthedocs.io/en/stable/developer.html).
+See the [App Store developer guide](https://nextcloudappstore.readthedocs.io/en/stable/developer.html).
 
 ## Public pages and launch
 
-The source repository must be public before requesting the app certificate. After the owner reviews the clean initial commit, make the repository public and check that the README, documentation, and screenshot URLs work without signing in.
-
-In GitHub, set the repository description from [launch-copy.md](launch-copy.md), set the homepage to `https://hweihwang.github.io/virtualoffice/`, enable private vulnerability reporting for [SECURITY.md](../SECURITY.md), and upload [social-preview.png](media/social-preview.png) in **Settings › Social preview**. Publish GitHub Pages from the `main` branch's `/docs` folder. Check the landing page on desktop and mobile, including video playback and the App Store link.
+The repository is public, with the description, homepage and topics from [launch-copy.md](launch-copy.md), private vulnerability reporting for [SECURITY.md](../SECURITY.md), and GitHub Pages from the `main` branch's `/docs` folder. GitHub has no API for the social preview, so upload [social-preview.png](media/social-preview.png) once in **Settings › General › Social preview**. After changing the landing page, check it on desktop and mobile, including video playback.
 
 The [36-second demo](media/demo.mp4) is ready for the landing page. To show it in the App Store gallery, upload it to PeerTube and add its public HTTPS URL as a `<video>` element in `appinfo/info.xml` **before** packaging and signing. The App Store does not accept YouTube links in that field. If no PeerTube account is available, the three screenshots remain the gallery; the landing page still shows the demo.
 

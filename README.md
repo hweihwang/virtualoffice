@@ -62,7 +62,8 @@ tests/fixture/setup.sh push   # Nextcloud 35, PostgreSQL, Talk and Client Push o
 | API and browser end-to-end | `npm run test:e2e` (use `VO_TRANSPORT=polling` after `tests/fixture/setup.sh polling`) |
 | Load | `npm run test:load -- --people 32 --seconds 60 --mode push` |
 | Screenshots, social preview and demo video | `scripts/marketing/build.sh` |
-| Release archive | `npm run package` |
+| Release archive | `npm run package` (unsigned, for testing) |
+| Signed release | `scripts/sign-release.sh ~/.nextcloud/certificates` |
 
 The [developer guide](docs/architecture.md) explains the architecture and the reasons behind it. [docs/releasing.md](docs/releasing.md) describes how to release.
 

@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # Installs the release archive on clean Nextcloud 35 instances with SQLite,
-# MariaDB 11.4 and MySQL 8.4 and runs the smoke test on each.
+# MariaDB 11.4 and MySQL 8.4 and runs the smoke test on each. A signed
+# archive must also pass occ integrity:check-app.
 # Usage: tests/fixture/matrix.sh build/artifacts/virtualoffice-1.0.0.tar.gz [sqlite mariadb mysql]
 set -eu
 ARCHIVE=$(cd "$(dirname "$1")" && pwd)/$(basename "$1")
@@ -50,6 +51,10 @@ for lane in $LANES; do
     for u in alice bao chi dan; do occ user:add --password-from-env $u >/dev/null; done
     for u in alice bao dan; do occ group:adduser staff $u; done
     echo "== $lane: $(occ status --output=json | grep -o '"versionstring":"[^"]*"') $(occ app:list | grep virtualoffice)"
+    # A signed archive must pass Nextcloud's own integrity check.
+    if tar -tzf "$ARCHIVE" | grep -qx 'virtualoffice/appinfo/signature.json'; then
+        if docker exec -u www-data $name php occ integrity:check-app virtualoffice; then echo "ok   signature verifies"; else echo "FAIL signature"; status=1; fi
+    fi
     if node "$HERE/smoke.mjs" http://localhost:$PORT; then :; else status=1; fi
     [ "${KEEP:-}" = 1 ] && continue
     docker rm -f $name $name-db >/dev/null 2>&1 || true
