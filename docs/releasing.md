@@ -6,6 +6,8 @@
 
 The release archive is a custom tarball with one top-level `virtualoffice/` directory. GitHub's automatically generated source archives do not have that layout. The app supports Nextcloud 35; do not widen the version range without testing the new version.
 
+Version 1.0.0 is published on [GitHub](https://github.com/hweihwang/virtualoffice/releases/tag/v1.0.0) and the [Nextcloud App Store](https://apps.nextcloud.com/apps/virtualoffice).
+
 ## Prepare
 
 1. Choose the release version in `package.json` and `appinfo/info.xml`. Add a matching `## <version>` entry to `CHANGELOG.md`.
@@ -31,7 +33,7 @@ The release archive is a custom tarball with one top-level `virtualoffice/` dire
 
 ## Certificate
 
-Signing needs a Nextcloud app certificate for the `virtualoffice` app ID. This is a one-time step. The owner keeps the 4096-bit RSA key, the CSR (`CN=virtualoffice`) and the certificate in `~/.nextcloud/certificates/`, outside this repository and readable only by the owner. The CSR was submitted to [app-certificate-requests](https://github.com/nextcloud/app-certificate-requests/pull/1271); Nextcloud answers with the public `virtualoffice.crt`, which goes next to the key. See the [code-signing guide](https://docs.nextcloud.com/server/stable/developer_manual/app_publishing_maintenance/code_signing.html).
+Signing needs a Nextcloud app certificate for the `virtualoffice` app ID. This is a one-time step. The owner keeps the 4096-bit RSA key, the CSR (`CN=virtualoffice`) and the certificate in `~/.nextcloud/certificates/`, outside this repository and readable only by the owner. The [certificate request](https://github.com/nextcloud/app-certificate-requests/pull/1271) was merged on 2026-09-29; the issued `virtualoffice.crt` is stored next to the key. See the [code-signing guide](https://docs.nextcloud.com/server/stable/developer_manual/app_publishing_maintenance/code_signing.html).
 
 ## Sign the exact release contents
 
@@ -53,16 +55,8 @@ For a signed archive, the matrix also runs `occ integrity:check-app virtualoffic
 
 ## Publish
 
-1. Publish the GitHub release `v<version>` from the reviewed, pushed commit, with the `CHANGELOG.md` entry as notes, and attach the signed tarball. Its download URL is the public HTTPS URL for the App Store. Do not use GitHub's automatic source archive. For `v1.0.0`, the release already exists as a draft with notes, so update that draft instead of creating another release:
-
-   ```sh
-   gh release edit v1.0.0 --target "$(git rev-parse HEAD)"
-   gh release upload v1.0.0 build/artifacts/virtualoffice-1.0.0-signed.tar.gz
-   gh release edit v1.0.0 --draft=false
-   ```
-
-   The download URL is `https://github.com/hweihwang/virtualoffice/releases/download/v<version>/virtualoffice-<version>-signed.tar.gz`. For later versions, create a new draft from the reviewed commit before uploading.
-2. For the first release only, [register the app](https://apps.nextcloud.com/developer/apps/new) with the contents of `virtualoffice.crt` and the app-ID signature.
+1. Create the GitHub release `v<version>` as a draft from the reviewed, pushed commit, with the `CHANGELOG.md` entry as notes. Attach the signed tarball, verify the uploaded file, then publish the release. Its download URL is `https://github.com/hweihwang/virtualoffice/releases/download/v<version>/virtualoffice-<version>-signed.tar.gz`. Do not use GitHub's automatic source archive or replace a published tarball.
+2. For the first release only, [register the app](https://apps.nextcloud.com/developer/apps/new) with the contents of `virtualoffice.crt` and the app-ID signature. Virtual Office is already registered; do not register it again, as that removes its existing App Store releases.
 3. [Upload the release](https://apps.nextcloud.com/developer/apps/releases/new) with the tarball's download URL and the archive signature.
 
 See the [App Store developer guide](https://nextcloudappstore.readthedocs.io/en/stable/developer.html).
@@ -75,4 +69,4 @@ The product page is https://hweihwang.com/virtualoffice/, in the hweihwang.com r
 
 The film plays on the product page. To show it in the App Store gallery, upload it to PeerTube and add its public HTTPS URL as a `<video>` element in `appinfo/info.xml` **before** packaging and signing. The App Store does not accept YouTube links in that field. If no PeerTube account is available, the five screenshots remain the gallery.
 
-After the App Store release is live, replace the pending-listing text in the README, `docs/admin.md` and the product page with links to the live listing, check those links, then use the ready [launch copy](launch-copy.md) for the announcement.
+Check the live App Store listing, the installation links in the README, `docs/admin.md` and the product page, and a fresh install through Nextcloud's app manager. The [launch copy](launch-copy.md) contains text for an announcement.

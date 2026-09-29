@@ -8,7 +8,7 @@
 
 <p align="center"><strong>See who's around. Drop by.</strong><br>A small shared office for Nextcloud Teams, groups and Talk conversations.</p>
 
-<p align="center"><a href="https://hweihwang.com/virtualoffice/">Website</a> · <a href="https://hweihwang.com/virtualoffice/#film">Watch the film</a> · <a href="docs/admin.md">Admin guide</a> · <a href="CHANGELOG.md">What's in 1.0</a><br><sub>Free and open source for Nextcloud 35. The App Store listing is coming soon.</sub></p>
+<p align="center"><a href="https://apps.nextcloud.com/apps/virtualoffice">Install from the App Store</a> · <a href="https://hweihwang.com/virtualoffice/">Website</a> · <a href="https://hweihwang.com/virtualoffice/#film">Watch the film</a> · <a href="docs/admin.md">Admin guide</a> · <a href="CHANGELOG.md">What's in 1.0</a><br><sub>Free and open source for Nextcloud 35.</sub></p>
 
 ![The Studio office: Alice and Bảo high-five at the coffee corner, Fern waters the plant, Chi and Emil focus at their desks, and Dana's desk shows her note while she is out](docs/screenshots/office.png)
 
@@ -42,7 +42,7 @@ Without Client Push, browsers check for changes about once a second. The [admin 
 
 ## Getting started
 
-1. Once the App Store listing is live, install Virtual Office there, then open **Office** from the app menu.
+1. Install Virtual Office from the [Nextcloud App Store](https://apps.nextcloud.com/apps/virtualoffice), then open **Office** from the app menu.
 2. Create an office for one of your Teams, or open one from a Talk conversation. Admins can also create group offices and offices for everyone.
 3. Choose your character and select **Enter office**.
 4. Click or tap a spot to walk there, or use the people and places list.

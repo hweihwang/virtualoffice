@@ -6,7 +6,7 @@
 
 ## Install
 
-Once the App Store listing is live, install and enable the app there. There is nothing else to set up; offices work right away.
+Install and enable the app from the [Nextcloud App Store](https://apps.nextcloud.com/apps/virtualoffice). There is nothing else to set up; offices work right away.
 
 Team offices need the Teams app (Circles). Group offices work without it. Conversation offices and call features need Talk; they are tested with Talk 25.
 

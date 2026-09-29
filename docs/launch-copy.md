@@ -4,7 +4,7 @@
 -->
 # Launch copy
 
-Ready-to-post text for the launch. Open every link before posting. Until the App Store listing is live, use the website and GitHub links only.
+Ready-to-post text for the launch. Open every link before posting. Version 1.0.0 is available on the [Nextcloud App Store](https://apps.nextcloud.com/apps/virtualoffice).
 
 ## Tagline
 
@@ -42,6 +42,7 @@ Inside, you walk over to a colleague, wave, or make a coffee together. Knock to 
 
 Opening an office never makes you visible; you choose when to enter. Only members can enter, and Virtual Office keeps no history of visits or movement. It runs on Nextcloud 35 with no extra server, and works with a mouse, touch, the keyboard or a screen reader.
 
+Install: https://apps.nextcloud.com/apps/virtualoffice
 Website and film: https://hweihwang.com/virtualoffice/
 Source and admin guide: https://github.com/hweihwang/virtualoffice
 
@@ -61,4 +62,4 @@ A slow look around The Studio, a small shared office in Nextcloud. It starts wit
 
 The app name is Virtual Office. Say “for Nextcloud” where it helps. Do not suggest that it is an official Nextcloud app, and do not use the Nextcloud logo in our own graphics. The logo is [media/logo.svg](media/logo.svg): a room seen from above, two people at a table and one stepping through the door. Its colors are blue `#1596dc` to `#0b4f82`, with an apricot table `#ffb57e`. Headlines use Fraunces, text uses Source Sans 3.
 
-The website is the visual introduction; the GitHub repository and, once live, the App Store page are where people install and get help.
+The website is the visual introduction. People install from the App Store and get help in the GitHub repository.
