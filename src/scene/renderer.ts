@@ -6,7 +6,7 @@ import type { Cell } from '../../shared/catalog.ts'
 import type { Direction } from '../../shared/movement.ts'
 import type { PersonView, RoomSession } from '../session/room.ts'
 
-import { mdiBalloon, mdiEmoticonExcited, mdiEmoticonLol, mdiGlassMugVariant, mdiHandClap, mdiHandWave, mdiHeadset, mdiHeart, mdiHeartMultiple, mdiPartyPopper, mdiSleep, mdiTimerSand } from '@mdi/js'
+import { mdiBalloon, mdiEmoticonExcited, mdiEmoticonLol, mdiGlassMugVariant, mdiHandClap, mdiHandWave, mdiHeadset, mdiHeart, mdiHeartMultiple, mdiMicrophone, mdiPartyPopper, mdiSleep, mdiTimerSand } from '@mdi/js'
 import { isWalkable } from '../../shared/catalog.ts'
 import { mapSvg } from './map.ts'
 import { creatureSvg } from './sprites.ts'
@@ -58,6 +58,12 @@ export interface RendererOptions {
 	/** Label of an office status, e.g. "Do not disturb". */
 	statusLabel: (status: string) => string
 	reducedMotion: () => boolean
+	/** "22:40", with a note when that is outside the person's working hours; empty when unknown. */
+	clockLabel?: (uid: string) => string
+	/** Whose voice is heard right now. */
+	speaking?: (uid: string) => boolean
+	/** Title of the microphone on the name tags of people with voice on. */
+	voiceLabel?: string
 	onPropBlocked?: () => void
 }
 
@@ -72,11 +78,13 @@ export class SceneRenderer {
 	private actorsLayer: HTMLElement
 	private actors = new Map<string, ActorElements>()
 	private propFx = new Map<string, HTMLElement>()
+	private playerFx: HTMLElement | null = null
 	private pairsLayer: HTMLElement
 	private pairFx = new Map<string, HTMLElement>()
 	private desksLayer: HTMLElement
 	private deskPlates = new Map<string, HTMLElement>()
 	private desksKey = ''
+	private desksTimes: unknown = null
 	private fixturesLayer: HTMLElement
 	private fixturesKey = ''
 	private frameId: number | null = null
@@ -122,7 +130,7 @@ export class SceneRenderer {
 		const key = JSON.stringify(decor)
 		if (key !== this.decorKey) {
 			this.decorKey = key
-			this.background.innerHTML = mapSvg(this.session.layoutData, decor)
+			this.background.innerHTML = mapSvg(this.session.layoutKey, decor)
 		}
 	}
 
@@ -172,6 +180,7 @@ export class SceneRenderer {
 			actor.root.classList.toggle('vo-walking', moving)
 			actor.sprite.dataset.facing = facing
 			actor.root.classList.toggle('vo-in-call', Boolean(this.session.state.call?.active && this.session.state.call.participants.includes(uid)))
+			actor.root.classList.toggle('vo-speaking', this.options.speaking?.(uid) ?? false)
 			const person = this.session.state.people.find((p) => p.uid === uid)
 			actor.emote.classList.toggle('vo-visible', Boolean(person && this.session.emoteShowing(person, serverNow)))
 		}
@@ -179,6 +188,7 @@ export class SceneRenderer {
 			fx.classList.toggle('vo-active', this.session.propShowing(id, serverNow))
 		}
 		this.propFx.get('coffee')?.classList.toggle('vo-clink', this.session.clinking(serverNow).length > 0)
+		this.playerFx?.classList.toggle('vo-active', this.session.state.music !== null)
 		this.drawPairs(serverNow)
 		this.follow()
 		this.frameId = requestAnimationFrame((t) => this.frame(t))
@@ -212,6 +222,11 @@ export class SceneRenderer {
 		const prop = this.session.layoutData.props.find((p) => p.cell[0] === cell[0] && p.cell[1] === cell[1])
 		if (prop) {
 			this.session.useProp(prop.id)
+			return
+		}
+		const player = this.session.layoutData.player
+		if (player && player.cell[0] === cell[0] && player.cell[1] === cell[1]) {
+			this.session.goToPlayer()
 			return
 		}
 		if (!isWalkable(this.session.layoutData, cell) || !this.session.walkTo(cell)) {
@@ -309,15 +324,18 @@ export class SceneRenderer {
 		focusing.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${mdiTimerSand}"/></svg>`
 		const call = el('span', 'vo-call-badge')
 		call.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${mdiHeadset}"/></svg>`
+		const voice = el('span', 'vo-voice-badge')
+		voice.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${mdiMicrophone}"/></svg>`
+		voice.title = this.options.voiceLabel ?? ''
 		const name = el('span', 'vo-name')
-		plate.append(mode, name, status, focusing, call)
+		plate.append(mode, name, status, focusing, call, voice)
 		root.append(shadow, balloon, sprite, sleep, emote, plate)
 		return { root, sprite, name, mode, emote, status, signature: '', at: [0, 0] }
 	}
 
 	private updateActor(actor: ActorElements, person: PersonView): void {
 		const appearance = `${person.appearance.creature}/${person.appearance.palette}/${person.appearance.accessory}`
-		const signature = `${appearance}|${person.name}|${person.mode}|${person.emote?.id ?? ''}${person.emote?.startedAt ?? ''}|${person.status?.status ?? ''}|${person.note ?? ''}|${person.birthday}|${person.focusing}`
+		const signature = `${appearance}|${person.name}|${person.mode}|${person.emote?.id ?? ''}${person.emote?.startedAt ?? ''}|${person.status?.status ?? ''}|${person.note ?? ''}|${person.birthday}|${person.focusing}|${person.voice !== null}`
 		if (signature === actor.signature) {
 			return
 		}
@@ -332,6 +350,7 @@ export class SceneRenderer {
 		actor.root.classList.toggle('vo-sleeping', person.status?.status === 'away')
 		actor.root.classList.toggle('vo-birthday', person.birthday)
 		actor.root.classList.toggle('vo-focusing', person.focusing)
+		actor.root.classList.toggle('vo-voice', person.voice !== null)
 		actor.status.dataset.status = person.status?.status ?? ''
 		actor.status.title = person.status ? this.options.statusLabel(person.status.status) : ''
 		actor.root.title = person.note ?? ''
@@ -349,11 +368,13 @@ export class SceneRenderer {
 	private syncDesks(): void {
 		const { desks, statuses, people } = this.session.state
 		const inside = new Set(people.map((p) => p.uid))
-		const key = JSON.stringify([desks, statuses, [...inside]])
-		if (key === this.desksKey) {
+		// The minute is part of the key, so local times in the tooltips stay current.
+		const key = JSON.stringify([desks, statuses, [...inside], Math.floor(Date.now() / 60_000)])
+		if (key === this.desksKey && this.session.state.times === this.desksTimes) {
 			return
 		}
 		this.desksKey = key
+		this.desksTimes = this.session.state.times
 		const seen = new Set<string>()
 		for (const owner of desks) {
 			const seat = this.session.layoutData.desks?.find((d) => d.id === owner.deskId)
@@ -386,7 +407,7 @@ export class SceneRenderer {
 				note.textContent = line
 				plate.append(note)
 			}
-			plate.title = [owner.name, status ? this.options.statusLabel(status.status) : '', status?.message ?? '', owner.note ?? ''].filter(Boolean).join(' · ')
+			plate.title = [owner.name, this.options.clockLabel?.(owner.uid) ?? '', status ? this.options.statusLabel(status.status) : '', status?.message ?? '', owner.note ?? ''].filter(Boolean).join(' · ')
 		}
 		for (const [deskId, plate] of this.deskPlates) {
 			if (!seen.has(deskId)) {
@@ -491,6 +512,14 @@ export class SceneRenderer {
 				: '<i></i><i></i><i></i><i></i>'
 			this.propFx.set(prop.id, fx)
 			layer.append(fx)
+		}
+		const player = this.session.layoutData.player
+		if (player) {
+			this.playerFx = el('div', 'vo-prop-fx vo-player-fx')
+			this.playerFx.style.left = `${player.cell[0] * TILE}px`
+			this.playerFx.style.top = `${player.cell[1] * TILE}px`
+			this.playerFx.innerHTML = '<i>♪</i><i>♫</i><i>♪</i>'
+			layer.append(this.playerFx)
 		}
 		return layer
 	}

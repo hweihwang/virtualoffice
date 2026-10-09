@@ -14,8 +14,9 @@ import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
+import { catalog } from '../../shared/catalog.ts'
 import { api, ApiError } from '../api.ts'
-import { errorMessage } from '../labels.ts'
+import { errorMessage, layoutLabel } from '../labels.ts'
 
 const props = defineProps<{ isAdmin: boolean, talk?: boolean }>()
 const emit = defineEmits<{ close: [], created: [office: OfficeDefinition] }>()
@@ -25,6 +26,8 @@ const audiences = ref<Audience[]>([])
 const audience = ref<Audience | null>(null)
 const manager = ref<{ id: string, label: string } | null>(null)
 const managerOptions = ref<{ id: string, label: string }[]>([])
+const layouts = Object.keys(catalog.layouts).map((id) => ({ id, label: layoutLabel(id) }))
+const layout = ref(layouts.find((l) => l.id === catalog.defaultLayout) ?? layouts[0])
 const loadingAudiences = ref(false)
 const saving = ref(false)
 const error = ref('')
@@ -83,7 +86,7 @@ async function save() {
 	saving.value = true
 	error.value = ''
 	try {
-		emit('created', await api.createOffice(isTalk.value ? audience.value.label : title.value.trim(), { kind: audience.value.kind, id: audience.value.id }, manager.value?.id))
+		emit('created', await api.createOffice(isTalk.value ? audience.value.label : title.value.trim(), { kind: audience.value.kind, id: audience.value.id }, manager.value?.id, layout.value.id))
 	} catch (e) {
 		error.value = e instanceof ApiError && e.code === 'INVALID_INPUT' ? e.message : errorMessage(e instanceof ApiError ? e.code : 'UNKNOWN')
 	} finally {
@@ -138,6 +141,12 @@ onMounted(() => searchAudiences())
 				label="label"
 				:filterable="false"
 				@search="searchManagers" />
+			<NcSelect
+				v-model="layout"
+				:options="layouts"
+				:inputLabel="t('virtualoffice', 'Layout')"
+				label="label"
+				:clearable="false" />
 			<NcNoteCard v-if="error" type="error" :text="error" />
 			<div class="create__actions">
 				<NcButton @click="emit('close')">

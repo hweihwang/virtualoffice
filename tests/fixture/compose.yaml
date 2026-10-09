@@ -53,6 +53,15 @@ services:
     volumes:
       - nextcloud:/var/www/html
     depends_on: [app, redis]
+  # A TURN server for voice on networks that only allow relayed traffic: tests/fixture/setup.sh push turn
+  turn:
+    image: coturn/coturn:4.6.3
+    profiles: [turn]
+    # Browsers only reach port 3478; the two relays of a call meet on the container's loopback.
+    command: [-n, --listening-port=3478, --relay-ip=127.0.0.1, --use-auth-secret, --static-auth-secret=virtualoffice-fixture-only, --realm=localhost, --allow-loopback-peers, --no-cli, --no-tls, --no-dtls, --fingerprint, --log-file=stdout]
+    ports:
+      - 127.0.0.1:3478:3478/udp
+      - 127.0.0.1:3478:3478/tcp
   proxy:
     image: nginx:1.29-alpine
     ports:

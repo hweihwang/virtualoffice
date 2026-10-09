@@ -8,7 +8,7 @@
 
 <p align="center"><strong>See who's around. Drop by.</strong><br>A small shared office for Nextcloud Teams, groups and Talk conversations.</p>
 
-<p align="center"><a href="https://apps.nextcloud.com/apps/virtualoffice">Install from the App Store</a> · <a href="https://hweihwang.com/virtualoffice/">Website</a> · <a href="https://hweihwang.com/virtualoffice/#film">Watch the film</a> · <a href="docs/admin.md">Admin guide</a> · <a href="CHANGELOG.md">What's in 1.0</a><br><sub>Free and open source for Nextcloud 35.</sub></p>
+<p align="center"><a href="https://apps.nextcloud.com/apps/virtualoffice">Install from the App Store</a> · <a href="https://hweihwang.com/virtualoffice/">Website</a> · <a href="https://hweihwang.com/virtualoffice/#film">Watch the film</a> · <a href="docs/admin.md">Admin guide</a> · <a href="CHANGELOG.md">What's new in 1.1</a><br><sub>Free and open source for Nextcloud 35.</sub></p>
 
 ![The Studio office: Alice and Bảo high-five at the coffee corner, Fern waters the plant, Chi and Emil focus at their desks, and Dana's desk shows her note while she is out](docs/screenshots/office.png)
 
@@ -18,10 +18,15 @@ Virtual Office gives a Nextcloud Team, a group or a Talk conversation a small sh
 
 - **See who's around.** The office shows who is inside and where. Desks show who is out, with their status and a short note for the day.
 - **Drop by.** Walk over, wave or make a coffee together. Knock to ask “got 2 minutes?”; they answer **Now**, **In 10 minutes** or **Later**.
+- **Talk to whoever is close by.** Turn on your microphone and the people standing next to you hear you, louder the closer they are, as in a game. Hold **V** to talk, or use an open mic. The Focus desks stay quiet.
+- **Play music for the office.** Pick songs from your own Nextcloud Files for the record player by the sofa. Everyone hears the same moment, softer as they walk away.
+- **Work across time zones.** See each person's local time and whether they are in their working hours, and the hours you all share today.
 - **Use it right inside Talk.** Open a conversation's office from any message menu, or share an office link in the chat, and step in without leaving the conversation. The office shows when the conversation's call is running.
 - **Spend a little time together.** Join a 25 or 50 minute **Focus together** session, or sign up for the weekly **Coffee roulette** in group offices.
 - **Find it where you work.** The Dashboard widget shows who is in your offices. Offices also show up in search, the Smart Picker and on Team pages, and Team offices show what is shared with the Team.
-- **Make it yours.** Pick a rabbit, cat, bear or bird, then a color and an accessory.
+- **Make it yours.** Pick a rabbit, cat, bear or bird, then a color and an accessory. Choose a large office or a small one for up to 12 people, and decorate it for autumn, winter or Lunar New Year.
+
+![The small office in winter: Alice plays music on the record player by the sofa, Fern and Bảo listen nearby, and the people list shows each person's local time and the hours everyone shares today](docs/screenshots/small-office.png)
 
 ![A Talk conversation with an interactive office card: Alice has stepped in and waves, and everyone else in the office is on the map](docs/screenshots/talk.png)
 
@@ -31,12 +36,13 @@ Virtual Office gives a Nextcloud Team, a group or a Talk conversation a small sh
 
 ## Privacy
 
-Opening an office never makes you visible; you choose **Enter office**. Only members of the Team, group or conversation can find and enter it. Virtual Office keeps no history of visits or movement. Desks, notes, knocks and the other optional features keep only what they need, and the [admin guide](docs/admin.md#privacy) says when each is removed.
+Opening an office never makes you visible; you choose **Enter office**. Only members of the Team, group or conversation can find and enter it. Virtual Office keeps no history of visits or movement. Voice goes directly between browsers and is never recorded; your microphone opens only when you turn voice on. Desks, notes, knocks and the other optional features keep only what they need, and the [admin guide](docs/admin.md#privacy) says when each is removed.
 
 ## Requirements
 
 - Nextcloud 35. No extra server is needed.
 - Optional: Talk for conversation offices and calls (tested with Talk 25), Teams for Team offices, Deck for due cards on Team boards, and Client Push (notify_push) for instant movement.
+- Voice needs HTTPS. It uses the STUN and TURN servers set up in Talk; company networks often need a TURN server.
 
 Without Client Push, browsers check for changes about once a second. The [admin guide](docs/admin.md) covers setup and measured performance.
 
@@ -48,7 +54,7 @@ Without Client Push, browsers check for changes about once a second. The [admin 
 4. Click or tap a spot to walk there, or use the people and places list.
 5. Select **Leave** when you are done. Closing the page also leaves the office.
 
-With the map focused, the arrow keys or W A S D walk, **Enter** uses the coffee machine or the plant next to you, and **1** to **4** send a reaction. The people and places list offers everything the map does and works with screen readers.
+With the map focused, the arrow keys or W A S D walk, **Enter** uses the coffee machine or the plant next to you, and **1** to **4** send a reaction. With voice on, hold **V** to talk, or press **M** to mute an open mic. The people and places list offers everything the map does and works with screen readers.
 
 ## Development
 
@@ -65,7 +71,7 @@ tests/fixture/setup.sh push   # Nextcloud 35, PostgreSQL, Talk and Client Push o
 | PHP code style | `composer cs:check` |
 | JS unit tests | `npm run test:unit` |
 | Types and lint | `npm run typecheck && npm run lint` |
-| API and browser end-to-end | `npm run test:e2e` (use `VO_TRANSPORT=polling` after `tests/fixture/setup.sh polling`) |
+| API and browser end-to-end | `npm run test:e2e` (use `VO_TRANSPORT=polling` after `tests/fixture/setup.sh polling`); voice runs in Chromium and WebKit with fake microphones, and through TURN alone with `VO_TURN=1` after `tests/fixture/setup.sh push turn` |
 | Load | `npm run test:load -- --people 32 --seconds 60 --mode push` |
 | Screenshots, social preview and product page assets | `scripts/marketing/build.sh` |
 | Launch film | `node scripts/marketing/film/render.mjs` |

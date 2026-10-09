@@ -7,6 +7,7 @@ import type { OfficeCard } from './api.ts'
 import { getRequestToken } from '@nextcloud/auth'
 import { getCanonicalLocale, n, t } from '@nextcloud/l10n'
 import { generateOcsUrl, generateUrl, imagePath } from '@nextcloud/router'
+import { previewFile } from './scene/map.ts'
 
 type RenderCallback = (el: HTMLElement, options: { richObject: Record<string, unknown>, interactive: boolean }) => void
 
@@ -69,6 +70,7 @@ function render(el: HTMLElement, token: string, url: string, interactive: boolea
 	card.className = 'vo-card'
 	const art = document.createElement('img')
 	art.className = 'vo-card__art'
+	// The shared reference cache only knows the generic preview; members see their layout.
 	art.src = imagePath('virtualoffice', 'office-preview.webp')
 	art.alt = ''
 	const body = document.createElement('div')
@@ -90,6 +92,7 @@ function render(el: HTMLElement, token: string, url: string, interactive: boolea
 
 	fetchCard(token, controller.signal)
 		.then(async (info) => {
+			art.src = imagePath('virtualoffice', previewFile(info.layoutId))
 			title.textContent = info.title
 			meta.textContent = `${info.audience} · ${peopleText(info)}`
 			if (info.call?.known && info.call.active) {

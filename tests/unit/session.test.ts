@@ -87,18 +87,22 @@ function fakeApi(overrides: Partial<RoomApi> = {}): RoomApi & { calls: string[] 
 		mode: vi.fn(async (_t, _s, mode: string) => own(person('alice', [5, 17], { mode }))),
 		profile: vi.fn(async () => own(person('alice', [5, 17]))),
 		interact: vi.fn(async () => ({ outcome: 'started', serverTime: Date.now() })),
+		startMusic: vi.fn(async () => ({ music: { uid: 'alice', name: 'ALICE', startedAt: Date.now(), tracks: [{ title: 'Song', durationMs: 60_000 }] }, serverTime: Date.now() })),
+		stopMusic: vi.fn(async () => ({ music: null, serverTime: Date.now() })),
+		voice: vi.fn(async (_t, _s, on: boolean) => own(person('alice', [5, 17], { voice: on ? 'x' : null }))),
+		signal: vi.fn(async () => ({ id: 1, serverTime: Date.now() })),
 		leave: vi.fn(async () => {
 			calls.push('leave')
 			return []
 		}),
 		desks: vi.fn(async () => {
 			calls.push('desks')
-			return { desks: [], statuses: {} }
+			return { desks: [], statuses: {}, times: {} }
 		}),
-		claimDesk: vi.fn(async () => ({ desks: [{ deskId: 'd1', uid: 'alice', name: 'ALICE', note: null, birthday: false }], statuses: {} })),
+		claimDesk: vi.fn(async () => ({ desks: [{ deskId: 'd1', uid: 'alice', name: 'ALICE', note: null, birthday: false }], statuses: {}, times: {} })),
 		focus: vi.fn(async (_t, _s, minutes: number) => ({ focus: { startedAt: Date.now(), endsAt: Date.now() + minutes * 60_000, minutes, uids: ['alice'] }, serverTime: Date.now() })),
 		leaveFocus: vi.fn(async () => ({ focus: null, serverTime: Date.now() })),
-		releaseDesk: vi.fn(async () => ({ desks: [], statuses: {} })),
+		releaseDesk: vi.fn(async () => ({ desks: [], statuses: {}, times: {} })),
 		...overrides,
 	}
 }
@@ -129,6 +133,49 @@ describe('RoomSession', () => {
 		await session.enter()
 		expect(session.state.status).toBe('outdated')
 		expect(api.leave).toHaveBeenCalled()
+	})
+
+	it('turns voice on, and stays in the office when an admin just turned voice off', async () => {
+		const api = fakeApi()
+		const session = new RoomSession(TOKEN, 'alice', api, null, HASH, 'starter-office-v1')
+		await session.enter()
+		await session.setVoice(true)
+		expect(session.state.people.find((p) => p.isYou)?.voice).toBe('x')
+		api.voice = vi.fn(async () => {
+			throw new ApiError(403, 'ACTION_DENIED', 'denied')
+		})
+		await session.setVoice(true)
+		expect(session.state.status).toBe('active')
+		expect(session.state.voiceAllowed).toBe(false)
+	})
+
+	it('hands voice signals from the poll over after the snapshot', async () => {
+		const order: string[] = []
+		const api = fakeApi({
+			poll: vi.fn(async () => ({ changed: true as const, ...snapshot(2, [person('alice', [5, 17]), person('bao', [4, 17], { voice: 'b'.repeat(32) })]), signals: [{ id: 1, from: 'b'.repeat(32), body: { type: 'offer' as const, sdp: 'v=0' } }] })),
+		})
+		const session = new RoomSession(TOKEN, 'alice', api, null, HASH, 'starter-office-v1')
+		session.onSignals = (signals) => order.push(`signals ${signals.length}, bao has voice: ${session.state.people.find((p) => p.uid === 'bao')?.voice !== null}`)
+		await session.enter()
+		await vi.advanceTimersByTimeAsync(POLL_INTERVAL.polling + 10)
+		expect(order).toEqual(['signals 1, bao has voice: true'])
+	})
+
+	it('asks to reload when the office switched to another layout', async () => {
+		const api = fakeApi({ enter: vi.fn(async () => snapshot(1, [person('alice', [5, 17])], { layoutId: 'compact-office-v1' })) })
+		const session = new RoomSession(TOKEN, 'alice', api, null, HASH, 'starter-office-v1')
+		await session.enter()
+		expect(session.state.status).toBe('outdated')
+		expect(api.leave).toHaveBeenCalled()
+
+		const later = fakeApi({
+			poll: vi.fn(async () => ({ changed: true as const, ...snapshot(2, [person('alice', [5, 17])], { layoutId: 'compact-office-v1' }) })),
+		})
+		const inside = new RoomSession(TOKEN, 'alice', later, null, HASH, 'starter-office-v1')
+		await inside.enter()
+		expect(inside.state.status).toBe('active')
+		await vi.advanceTimersByTimeAsync(POLL_INTERVAL.polling + 10)
+		expect(inside.state.status).toBe('outdated')
 	})
 
 	it.each([
@@ -445,7 +492,7 @@ describe('people together', () => {
 		let push: (batch: EventBatch) => void = () => {}
 		const api = fakeApi({ desks: vi.fn(async () => {
 			api.calls.push('desks')
-			return { desks: [{ deskId: 'd3', uid: 'chi', name: 'CHI', note: 'Writing the report', birthday: false }], statuses: { bao: { status: 'away' as const, message: null, icon: null, clearAt: null } } }
+			return { desks: [{ deskId: 'd3', uid: 'chi', name: 'CHI', note: 'Writing the report', birthday: false }], statuses: { bao: { status: 'away' as const, message: null, icon: null, clearAt: null } }, times: {} }
 		}) })
 		const session = new RoomSession(TOKEN, 'alice', api, pushInto((h) => {
 			push = h

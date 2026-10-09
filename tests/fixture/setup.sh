@@ -2,10 +2,11 @@
 # SPDX-FileCopyrightText: 2026 Hoang Pham
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Fixture setup. Usage: tests/fixture/setup.sh [push|polling]
+# Fixture setup. Usage: tests/fixture/setup.sh [push|polling] [turn]
 set -eu
 cd "$(dirname "$0")"
 MODE=${1:-polling}
+TURN=${2:-}
 PASS=virtualoffice-fixture-only
 occ() { docker compose exec -T -u www-data -e NC_PASS=$PASS app php occ "$@"; }
 
@@ -67,5 +68,13 @@ if [ "$MODE" = push ]; then
 else
     occ app:disable notify_push >/dev/null 2>&1 || true
     docker compose --profile push stop push >/dev/null 2>&1 || true
+fi
+# Talk hands out the TURN server with credentials from the shared secret.
+occ talk:turn:list --output=json 2>/dev/null | grep -q 'localhost:3478' && occ talk:turn:delete turn localhost:3478 udp,tcp >/dev/null 2>&1 || true
+if [ "$TURN" = turn ]; then
+    docker compose --profile turn up -d turn
+    occ talk:turn:add --secret=$PASS turn localhost:3478 udp,tcp >/dev/null
+else
+    docker compose --profile turn stop turn >/dev/null 2>&1 || true
 fi
 echo "Fixture ready in $MODE mode at http://localhost:18935"

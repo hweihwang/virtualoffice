@@ -18,6 +18,7 @@ use OCA\VirtualOffice\Service\AccessPolicy;
 use OCA\VirtualOffice\Service\Clock;
 use OCA\VirtualOffice\Service\RoomService;
 use OCA\VirtualOffice\Service\RouletteService;
+use OCA\VirtualOffice\Service\TimeService;
 use OCP\IUser;
 use OCP\IUserManager;
 use OCP\Notification\IManager;
@@ -34,6 +35,8 @@ class RouletteServiceTest extends TestCase {
 	private Office $office;
 	/** @var list<string> */
 	private array $notified = [];
+	/** @var array<string, string> uid => time zone; everyone works 09:00 to 17:00 on weekdays */
+	private array $zones = [];
 
 	protected function setUp(): void {
 		$this->entries = $this->createStub(RouletteMapper::class);
@@ -56,7 +59,22 @@ class RouletteServiceTest extends TestCase {
 			});
 			return $notification;
 		});
-		$this->service = new RouletteService($this->entries, $this->createStub(OfficeMapper::class), $this->policy, $users, $notifications, $this->createStub(Clock::class));
+		$time = $this->createStub(TimeService::class);
+		$time->method('forUsers')->willReturnCallback(function (array $uids) {
+			$days = array_fill(1, 7, []);
+			for ($d = 1; $d <= 5; $d++) {
+				$days[$d] = [[540, 1020]];
+			}
+			$result = [];
+			foreach ($uids as $uid) {
+				$zone = $this->zones[$uid] ?? 'Europe/Berlin';
+				$result[$uid] = ['timeZone' => $zone, 'hours' => ['timeZone' => $zone, 'days' => $days, 'default' => true]];
+			}
+			return $result;
+		});
+		$clock = $this->createStub(Clock::class);
+		$clock->method('nowMs')->willReturn((new \DateTimeImmutable('2027-03-07 12:00 UTC'))->getTimestamp() * 1000);
+		$this->service = new RouletteService($this->entries, $this->createStub(OfficeMapper::class), $this->policy, $users, $notifications, $clock, $time);
 		$this->office = new Office();
 		$this->office->setId(3);
 		$this->office->setToken(str_repeat('b', 32));
@@ -79,6 +97,23 @@ class RouletteServiceTest extends TestCase {
 		$pairs = $this->service->pairOffice($this->office, fn (array $pool) => $pool);
 		$this->assertSame([['ana', 'cam'], ['ben', 'dia']], $pairs);
 		$this->assertSame(['ana', 'cam', 'ben', 'dia'], $this->notified);
+	}
+
+	public function testPeopleArePairedWithWhoeverSharesTheMostWorkingHours(): void {
+		// Ana in Berlin, Ben in Tokyo (no shared hours), Cam in New York (3 hours with Ana), Dia in Seoul (all hours with Ben).
+		$this->zones = ['ana' => 'Europe/Berlin', 'ben' => 'Asia/Tokyo', 'cam' => 'America/New_York', 'dia' => 'Asia/Seoul'];
+		$this->entries->method('findByOffice')->willReturn([$this->entry('ana'), $this->entry('ben'), $this->entry('cam'), $this->entry('dia')]);
+		$this->policy->method('isMember')->willReturn(true);
+		$this->policy->method('isWelcome')->willReturn(true);
+		$this->assertSame([['ana', 'cam'], ['ben', 'dia']], $this->service->pairOffice($this->office, fn (array $pool) => $pool));
+	}
+
+	public function testLastWeeksPartnerIsAvoidedEvenWithMoreSharedHours(): void {
+		$this->zones = ['ana' => 'Europe/Berlin', 'ben' => 'Europe/Paris', 'cam' => 'America/New_York'];
+		$this->entries->method('findByOffice')->willReturn([$this->entry('ana', 'ben'), $this->entry('ben', 'ana'), $this->entry('cam')]);
+		$this->policy->method('isMember')->willReturn(true);
+		$this->policy->method('isWelcome')->willReturn(true);
+		$this->assertSame([['ana', 'cam']], $this->service->pairOffice($this->office, fn (array $pool) => $pool));
 	}
 
 	public function testPeopleRemovedForAWhileWaitAndPeopleWhoLeftAreDropped(): void {

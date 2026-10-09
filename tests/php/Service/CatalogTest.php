@@ -46,9 +46,26 @@ class CatalogTest extends TestCase {
 
 	public function testDecorFillsDefaultsAndRejectsUnknownValues(): void {
 		$decor = $this->catalog->validateDecor(['rug' => 'ocean']);
-		$this->assertSame(['floor' => 'oak', 'rug' => 'ocean', 'wallArt' => 'mountains', 'lights' => 'warm'], $decor);
+		$this->assertSame(['floor' => 'oak', 'rug' => 'ocean', 'wallArt' => 'mountains', 'lights' => 'warm', 'season' => 'none'], $decor);
 		$this->expectException(ApiException::class);
 		$this->catalog->validateDecor(['rug' => 'lava']);
+	}
+
+	public function testOfficesSavedBeforeSeasonsGetTheDefaultSeason(): void {
+		$stored = ['floor' => 'mint', 'rug' => 'none', 'wallArt' => 'cat', 'lights' => 'none'];
+		$this->assertSame($stored + ['season' => 'none'], $this->catalog->validateDecor($stored));
+		$this->assertSame('lunar', $this->catalog->validateDecor(['season' => 'lunar'])['season']);
+	}
+
+	public function testLayoutsDeclareCapacityAndPlayer(): void {
+		$this->assertSame(['starter-office-v1', 'compact-office-v1'], $this->catalog->layoutIds());
+		$this->assertSame(32, $this->catalog->layoutCapacity('starter-office-v1'));
+		$this->assertSame(12, $this->catalog->layoutCapacity('compact-office-v1'));
+		$compact = $this->catalog->layout('compact-office-v1');
+		$this->assertSame(['d1', 'd2', 'd3', 'd4', 'd5', 'd6'], $this->catalog->deskIds($compact));
+		$this->assertSame('common', $this->catalog->player($compact)['zone']);
+		$this->expectException(ApiException::class);
+		$this->catalog->layout('castle-v1');
 	}
 
 	public function testUnknownDecorSlotIsRejected(): void {

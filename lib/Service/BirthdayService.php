@@ -23,6 +23,7 @@ class BirthdayService {
 
 	public function __construct(
 		private IAccountManager $accounts,
+		private TimeService $time,
 	) {
 	}
 
@@ -42,8 +43,13 @@ class BirthdayService {
 		return $this->cache[$uid];
 	}
 
-	/** Whether "MM-DD" is today, by the server's date. */
-	public static function isToday(?string $monthDay, int $nowMs): bool {
-		return $monthDay !== null && $monthDay === date('m-d', intdiv($nowMs, 1000));
+	/** Whether "MM-DD" is today where the person is, by the server's zone when they set none. */
+	public function isToday(string $uid, ?string $monthDay, int $nowMs): bool {
+		if ($monthDay === null) {
+			return false;
+		}
+		$zone = $this->time->timeZone($uid);
+		$now = (new \DateTimeImmutable('@' . intdiv($nowMs, 1000)))->setTimezone(new \DateTimeZone($zone ?? date_default_timezone_get()));
+		return $monthDay === $now->format('m-d');
 	}
 }

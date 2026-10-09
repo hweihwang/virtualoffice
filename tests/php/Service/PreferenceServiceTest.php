@@ -68,10 +68,21 @@ class PreferenceServiceTest extends TestCase {
 		$this->assertSame(['revision' => 0, 'preferences' => null], $this->service->get('alice'));
 	}
 
+	public function testSoundSettingsHaveDefaults(): void {
+		$saved = $this->service->set('alice', 0, ['appearance' => $this->prefs()['appearance'], 'ui' => ['view' => 'scene']]);
+		$this->assertSame(['view' => 'scene', 'reducedEffects' => false, 'announcements' => true, 'musicVolume' => 50, 'voiceMode' => 'push', 'voiceVolume' => 100], $saved['preferences']['ui']);
+		$saved = $this->service->set('alice', 1, ['appearance' => $this->prefs()['appearance'], 'ui' => ['musicVolume' => 0, 'voiceMode' => 'open', 'voiceVolume' => 30]]);
+		$this->assertSame([0, 'open', 30], [$saved['preferences']['ui']['musicVolume'], $saved['preferences']['ui']['voiceMode'], $saved['preferences']['ui']['voiceVolume']]);
+	}
+
 	public function testRejectsUnknownFields(): void {
 		foreach ([
 			['appearance' => $this->prefs()['appearance'], 'ui' => ['view' => 'grid']],
 			['appearance' => $this->prefs()['appearance'], 'ui' => ['reducedEffects' => 'yes']],
+			['appearance' => $this->prefs()['appearance'], 'ui' => ['musicVolume' => 101]],
+			['appearance' => $this->prefs()['appearance'], 'ui' => ['musicVolume' => '50']],
+			['appearance' => $this->prefs()['appearance'], 'ui' => ['voiceMode' => 'always']],
+			['appearance' => $this->prefs()['appearance'], 'ui' => ['voiceVolume' => -1]],
 			['appearance' => $this->prefs()['appearance'], 'avatarUrl' => 'https://evil.example/x.svg'],
 			'nope',
 		] as $bad) {

@@ -59,6 +59,18 @@ check('bao sees two people', poll.data?.participants?.length === 2)
 const again = await call('bao', 'GET', `/offices/${token}/room?session=${b}&rev=${poll.data.rev}`)
 check('unchanged room answers briefly', again.data?.changed === false)
 
+check('alice turns voice on', (await call('alice', 'POST', `/offices/${token}/room/voice`, { session: a, on: true })).data?.participant?.voice === a)
+check('bao turns voice on', (await call('bao', 'POST', `/offices/${token}/room/voice`, { session: b, on: true })).status === 200)
+const signal = await call('alice', 'POST', `/offices/${token}/room/signal`, { session: a, to: b, body: { type: 'offer', sdp: 'v=0' } })
+check('alice signals bao', signal.status === 200)
+const signals = await call('bao', 'GET', `/offices/${token}/room?session=${b}&rev=0`)
+check('bao gets the signal with his poll', signals.data?.signals?.[0]?.id === signal.data?.id)
+check('the signal is gone once read', (await call('bao', 'GET', `/offices/${token}/room?session=${b}&rev=0`)).data?.signals === undefined)
+check('dan claims desk 10', (await call('dan', 'PUT', `/offices/${token}/desks/d10`)).status === 200)
+check('alice claims desk 2', (await call('alice', 'PUT', `/offices/${token}/desks/d2`)).status === 200)
+const times = (await call('alice', 'GET', `/offices/${token}/desks`)).data?.times
+check('desks show time zones and working hours', times?.alice?.hours?.days?.['1']?.[0]?.[0] === 540 && times?.dan !== undefined)
+
 await call('admin', 'PUT', '/admin/settings', { roomCapacity: 2 })
 check('full office refuses a third person', (await call('dan', 'POST', `/offices/${token}/room/enter`, { session: session() })).data?.code === 'ROOM_FULL')
 const removed = await call('alice', 'PUT', `/offices/${token}/removals`, { uid: 'bao', minutes: 15 })
@@ -67,7 +79,15 @@ check('bao cannot come back yet', (await call('bao', 'POST', `/offices/${token}/
 await call('admin', 'PUT', '/admin/settings', { roomCapacity: 32 })
 
 check('alice leaves', (await call('alice', 'POST', `/offices/${token}/room/leave`, { session: a })).status === 200)
-check('office is empty', (await call('alice', 'GET', `/offices/${token}`)).data?.count === 0)
+const empty = await call('alice', 'GET', `/offices/${token}`)
+check('office is empty', empty.data?.count === 0)
+const small = await fetch(`${base}/ocs/v2.php/apps/virtualoffice/api/v1/offices/${token}`, {
+	method: 'PATCH',
+	headers: { Authorization: 'Basic ' + Buffer.from(`alice:${password}`).toString('base64'), 'OCS-APIRequest': 'true', Accept: 'application/json', 'Content-Type': 'application/json', 'If-Match': `"${empty.data.revision}"` },
+	body: JSON.stringify({ layoutId: 'compact-office-v1' }),
+})
+check('the empty office becomes a small one', small.status === 200)
+check('desks the small office lacks are freed', JSON.stringify((await call('alice', 'GET', `/offices/${token}/desks`)).data?.desks?.map((d) => d.deskId)) === '["d2"]')
 check('manager deletes the office', (await call('alice', 'DELETE', `/offices/${token}`, undefined)).status === 428)
 
 process.exitCode = failures === 0 ? 0 : 1

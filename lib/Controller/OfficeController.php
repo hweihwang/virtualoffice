@@ -78,10 +78,10 @@ class OfficeController extends OCSController {
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: 20, period: 60)]
 	#[ApiRoute(verb: 'POST', url: '/api/v1/offices')]
-	public function create(mixed $title = null, mixed $audience = null, mixed $managerUid = null): DataResponse {
-		return $this->respond(function () use ($title, $audience, $managerUid) {
+	public function create(mixed $title = null, mixed $audience = null, mixed $managerUid = null, mixed $layoutId = null): DataResponse {
+		return $this->respond(function () use ($title, $audience, $managerUid, $layoutId) {
 			$user = $this->user();
-			return $this->offices->definition($user, $this->offices->create($user, $title, $audience, $managerUid), 0);
+			return $this->offices->definition($user, $this->offices->create($user, $title, $audience, $managerUid, $layoutId), 0);
 		}, Http::STATUS_CREATED);
 	}
 
@@ -103,13 +103,13 @@ class OfficeController extends OCSController {
 			$user = $this->user();
 			$office = $this->offices->getByToken($token);
 			$patch = [];
-			foreach (['title', 'decor', 'talk'] as $key) {
+			foreach (['title', 'decor', 'talk', 'layoutId'] as $key) {
 				if (array_key_exists($key, $this->request->getParams())) {
 					$patch[$key] = $this->request->getParam($key);
 				}
 			}
 			foreach (array_keys($this->request->getParams()) as $key) {
-				if (!in_array($key, ['title', 'decor', 'talk', 'token', 'format', '_route'], true)) {
+				if (!in_array($key, ['title', 'decor', 'talk', 'layoutId', 'token', 'format', '_route'], true)) {
 					throw ApiException::invalid('Unknown field ' . $key);
 				}
 			}

@@ -19,6 +19,7 @@ use OCP\Lock\LockedException;
 /** Appearance, UI choices and the "Today" note, stored as ordinary per-user app config. */
 class PreferenceService {
 	public const NOTE_MAX_LENGTH = 80;
+	public const VOICE_MODES = ['push', 'open'];
 	private const NOTE_MAX_MS = 86_400_000;
 
 	public function __construct(
@@ -28,7 +29,7 @@ class PreferenceService {
 	) {
 	}
 
-	/** @return array{revision: int, preferences: ?array{appearance: array{creature: string, palette: string, accessory: string}, ui: array{view: string, reducedEffects: bool, announcements: bool}}} */
+	/** @return array{revision: int, preferences: ?array{appearance: array{creature: string, palette: string, accessory: string}, ui: array{view: string, reducedEffects: bool, announcements: bool, musicVolume: int, voiceMode: string, voiceVolume: int}}} */
 	public function get(string $uid): array {
 		$revision = $this->userConfig->getValueInt($uid, Application::APP_ID, 'revision', 0);
 		$stored = json_decode($this->userConfig->getValueString($uid, Application::APP_ID, 'preferences', ''), true);
@@ -134,13 +135,17 @@ class PreferenceService {
 			throw ApiException::invalid('Invalid preferences');
 		}
 		$ui = $preferences['ui'] ?? [];
-		if (!is_array($ui) || array_diff(array_keys($ui), ['view', 'reducedEffects', 'announcements']) !== []) {
+		if (!is_array($ui) || array_diff(array_keys($ui), ['view', 'reducedEffects', 'announcements', 'musicVolume', 'voiceMode', 'voiceVolume']) !== []) {
 			throw ApiException::invalid('Invalid preferences');
 		}
 		$view = $ui['view'] ?? 'scene';
+		$volume = static fn (mixed $value) => is_int($value) && $value >= 0 && $value <= 100;
 		if (!in_array($view, ['scene', 'list'], true)
 			|| !is_bool($ui['reducedEffects'] ?? false)
-			|| !is_bool($ui['announcements'] ?? true)) {
+			|| !is_bool($ui['announcements'] ?? true)
+			|| !$volume($ui['musicVolume'] ?? 50)
+			|| !in_array($ui['voiceMode'] ?? 'push', self::VOICE_MODES, true)
+			|| !$volume($ui['voiceVolume'] ?? 100)) {
 			throw ApiException::invalid('Invalid preferences');
 		}
 		return [
@@ -149,6 +154,10 @@ class PreferenceService {
 				'view' => $view,
 				'reducedEffects' => $ui['reducedEffects'] ?? false,
 				'announcements' => $ui['announcements'] ?? true,
+				// 0 turns the music off.
+				'musicVolume' => $ui['musicVolume'] ?? 50,
+				'voiceMode' => $ui['voiceMode'] ?? 'push',
+				'voiceVolume' => $ui['voiceVolume'] ?? 100,
 			],
 		];
 	}

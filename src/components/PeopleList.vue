@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import type { PersonView, RoomSession } from '../session/room.ts'
 
-import { mdiWalk } from '@mdi/js'
+import { mdiMusic, mdiWalk } from '@mdi/js'
 import { getCapabilities } from '@nextcloud/capabilities'
 import { n, t } from '@nextcloud/l10n'
 import { generateUrl } from '@nextcloud/router'
@@ -18,11 +18,14 @@ import NcAvatar from '@nextcloud/vue/components/NcAvatar'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import CreaturePreview from './CreaturePreview.vue'
+import LocalClock from './LocalClock.vue'
 import { deskLabel, emoteLabel, modeLabel, propLabel, statusLabel, zoneLabel } from '../labels.ts'
 import { EMOTE_ICONS } from '../scene/renderer.ts'
+import { audioDuration, playPosition } from '../session/music.ts'
+import { clockOf } from '../session/time.ts'
 
 const props = defineProps<{ session: RoomSession, canManage: boolean, managers: string[], talk?: boolean, inCall?: string[] }>()
-const emit = defineEmits<{ walkTo: [uid: string], remove: [person: PersonView], feedback: [text: string], knock: [uid: string, name: string] }>()
+const emit = defineEmits<{ walkTo: [uid: string], remove: [person: PersonView], feedback: [text: string], knock: [uid: string, name: string], call: [] }>()
 
 const isMobile = useIsMobile()
 const buttonSize = computed(() => isMobile.value ? 'normal' : 'small')
@@ -94,6 +97,47 @@ function useProp(id: string) {
 		emit('feedback', t('virtualoffice', 'That cannot be reached from here'))
 	}
 }
+
+const music = computed(() => props.session.state.music)
+/** The track playing now, by the shared timeline. */
+const nowPlaying = computed(() => {
+	const current = music.value
+	const position = current ? playPosition(current, now.value) : null
+	return current && position ? current.tracks[position.index].title : ''
+})
+
+/** Up to 10 of your own audio files; their length comes from the browser. */
+async function playMusic() {
+	const { getFilePickerBuilder } = await import('@nextcloud/dialogs')
+	let nodes
+	try {
+		nodes = await getFilePickerBuilder(t('virtualoffice', 'Choose music to play for the office'))
+			.setMultiSelect(true)
+			.setMimeTypeFilter(['audio/*'])
+			.addButton({ label: t('virtualoffice', 'Play'), variant: 'primary', callback: () => {} })
+			.build()
+			.pickNodes()
+	} catch {
+		return
+	}
+	if (nodes.length > 10) {
+		emit('feedback', t('virtualoffice', 'The first 10 files play'))
+	}
+	const tracks = await Promise.all(nodes.slice(0, 10).map(async (node) => ({ fileId: node.fileid ?? 0, durationMs: await audioDuration(node.source) })))
+	if (tracks.some((track) => track.durationMs === 0)) {
+		emit('feedback', t('virtualoffice', 'This browser cannot play one of these files'))
+		return
+	}
+	if (props.session.playMusic(tracks) === 'unreachable') {
+		emit('feedback', t('virtualoffice', 'That cannot be reached from here'))
+	}
+}
+
+function stopMusic() {
+	if (props.session.stopMusic() === 'unreachable') {
+		emit('feedback', t('virtualoffice', 'That cannot be reached from here'))
+	}
+}
 </script>
 
 <template>
@@ -108,13 +152,29 @@ function useProp(id: string) {
 					{{ t('virtualoffice', 'Go here') }}
 				</NcButton>
 			</div>
-			<div v-if="group.props.length" class="people__props">
+			<div v-if="group.props.length || layout.player?.zone === group.id" class="people__props">
 				<NcButton
 					v-for="prop in group.props"
 					:key="prop.id"
 					:size="buttonSize"
 					@click="useProp(prop.id)">
 					{{ propLabel(prop.id) }}
+				</NcButton>
+				<NcButton
+					v-if="layout.player?.zone === group.id && !music"
+					:size="buttonSize"
+					@click="playMusic">
+					<template #icon>
+						<NcIconSvgWrapper :path="mdiMusic" :size="18" />
+					</template>
+					{{ t('virtualoffice', 'Play music') }}
+				</NcButton>
+			</div>
+			<div v-if="music && layout.player?.zone === group.id" class="people__music" role="status">
+				<NcIconSvgWrapper :path="mdiMusic" :size="18" />
+				<span class="people__music-title">{{ t('virtualoffice', 'Now playing: {title} · {name}', { title: nowPlaying, name: music.name }) }}</span>
+				<NcButton :size="buttonSize" variant="tertiary" @click="stopMusic">
+					{{ t('virtualoffice', 'Stop') }}
 				</NcButton>
 			</div>
 			<ul v-if="group.people.length">
@@ -131,7 +191,7 @@ function useProp(id: string) {
 					<span class="person__text">
 						<span class="person__name"><template v-if="person.isYou">{{ t('virtualoffice', '{name} (you)', { name: person.name }) }}</template><template v-else>{{ person.name }}</template></span>
 						<span class="person__mode" :data-mode="person.mode">
-							{{ modeLabel(person.mode) }}<template v-if="inCall?.includes(person.uid)"> · {{ t('virtualoffice', 'In the call') }}</template><template v-if="statusText(person.status)"> · {{ statusText(person.status) }}</template><template v-if="person.focusing"> · {{ t('virtualoffice', 'Focusing together') }}</template><template v-if="person.birthday"> · 🎈 {{ t('virtualoffice', 'Birthday today') }}</template>
+							{{ modeLabel(person.mode) }}<template v-if="clockOf(session.state.times[person.uid], now)"> · <LocalClock :info="session.state.times[person.uid]" :now="now" /></template><template v-if="inCall?.includes(person.uid)"> · {{ t('virtualoffice', 'In the call') }}</template><template v-if="statusText(person.status)"> · {{ statusText(person.status) }}</template><template v-if="person.focusing"> · {{ t('virtualoffice', 'Focusing together') }}</template><template v-if="person.birthday"> · 🎈 {{ t('virtualoffice', 'Birthday today') }}</template>
 						</span>
 						<span v-if="person.note" class="person__note">{{ person.note }}</span>
 					</span>
@@ -146,7 +206,11 @@ function useProp(id: string) {
 							{{ t('virtualoffice', 'Knock: got 2 minutes?') }}
 						</NcActionButton>
 						<!-- Talk opens a floating call on this page for links of this exact form. -->
-						<NcActionLink v-if="talk && callsEnabled" :href="directCallUrl(person.uid)" closeAfterClick>
+						<NcActionLink
+							v-if="talk && callsEnabled"
+							:href="directCallUrl(person.uid)"
+							closeAfterClick
+							@click="emit('call')">
 							{{ t('virtualoffice', 'Call') }}
 						</NcActionLink>
 						<NcActionButton v-if="canManage && !managers.includes(person.uid)" closeAfterClick @click="emit('remove', person)">
@@ -231,7 +295,7 @@ function useProp(id: string) {
 					<span class="person__text">
 						<span class="person__name">{{ owner.name }}<template v-if="owner.birthday"> 🎈</template></span>
 						<span class="person__mode">
-							{{ deskLabel(owner.deskId) }}<template v-if="statusText(session.state.statuses[owner.uid] ?? null)"> · {{ statusText(session.state.statuses[owner.uid] ?? null) }}</template>
+							{{ deskLabel(owner.deskId) }}<template v-if="clockOf(session.state.times[owner.uid], now)"> · <LocalClock :info="session.state.times[owner.uid]" :now="now" /></template><template v-if="statusText(session.state.statuses[owner.uid] ?? null)"> · {{ statusText(session.state.statuses[owner.uid] ?? null) }}</template>
 						</span>
 						<span v-if="owner.note" class="person__note">{{ owner.note }}</span>
 					</span>
@@ -282,6 +346,21 @@ function useProp(id: string) {
 	flex-wrap: wrap;
 	gap: 6px;
 	margin: 6px 0;
+}
+
+.people__music {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 6px 0;
+}
+
+.people__music-title {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .people__empty {

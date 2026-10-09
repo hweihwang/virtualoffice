@@ -28,8 +28,9 @@ Browsers detect when pushes stop arriving and switch back to polling on their ow
 
 *Administration settings › Virtual Office*:
 
-- **People per office**: 2 to 32. Lowering it never takes anyone out; it only stops new people from entering a full office.
+- **People per office**: 2 to 32. Lowering it never takes anyone out; it only stops new people from entering a full office. A small office holds at most 12 whatever this says.
 - **Offices for everyone**: lets admins create offices every account can enter. Off by default. Turning it off keeps these offices, but nobody can open them until it is on again.
+- **Allow voice**: lets people talk to others standing close by. On by default; see [Voice](#voice).
 - **All offices**: every office with who it is for and how many people are inside. Offices where no manager has access anymore are marked **No manager**. Open one to add a manager or delete it.
 
 ## Who can do what
@@ -52,6 +53,15 @@ People add the **Virtual Office** Dashboard widget with **Customize** on the Das
 
 When Talk or Teams is disabled, admins can still list, edit and delete offices of that kind, but nobody can open or enter them until the app is back.
 
+## Voice
+
+People who turn on their microphone in an office hear the people standing close by, as in a game, and Focus desks stay quiet. Turn it off for everyone with **Allow voice**; people who have it on then lose it at once.
+
+- Voice uses WebRTC between browsers. It uses the STUN and TURN servers configured in Talk (*Administration settings › Talk*). Without Talk it uses Talk's default STUN server, `stun.nextcloud.com:443`.
+- Company networks and some home routers block direct connections. Then only a TURN server connects people; set one up in Talk, for example coturn on port 443.
+- Voice needs HTTPS, because browsers only allow the microphone on secure pages. The button does not show on plain HTTP.
+- Voice adds no load on Nextcloud beyond a few small signal requests when people connect. Each person connects to at most 6 others.
+
 ## Privacy
 
 - Nothing about past visits is stored: no join or leave log, no history of positions or reactions.
@@ -62,9 +72,12 @@ When Talk or Teams is disabled, admins can still list, edit and delete offices o
 - "Tell me when someone arrives" stores who asked for which office until the next arrival or the end of their day. The notification shows only while the person who arrived is still inside.
 - A knock ("got 2 minutes?") is stored only until it is answered or for 30 minutes, then deleted with its notification. The answer is a notification that disappears after 30 minutes.
 - Coffee roulette stores who joined in which group office or office for everyone, and only each person's most recent partner, to avoid the same pair twice in a row. Leaving the roulette or deleting the account removes the entry at once; leaving the group removes it at the next weekly pairing. Pairing notifications show for 7 days.
-- Birthdays come from the profile's birth date, only when it is shared beyond "Private". Only month and day are used, shown on the day by the server's date.
+- Birthdays come from the profile's birth date, only when it is shared beyond "Private". Only month and day are used, shown on that day in the person's time zone.
 - The "Today" note is per-user app config. It is hidden at the end of the person's day, 24 hours at the latest, and deleted by the background job within 5 minutes after that.
 - Knocks, answers, arrivals and roulette pairs are ordinary Nextcloud notifications. Arrival notifications disappear after 30 minutes.
+- The music player plays files of the person who starts it, read with their permissions on each request. The files are streamed only to people inside the office, only while that person is inside, and never from shares without download permission. The office stores the file ids and titles while the music plays; the music stops, and the entry goes, when that person leaves.
+- Members of an office see the local time and working hours of the people inside and the desk owners, from Personal settings › Locale and › Availability, as Contacts and Talk show local times.
+- Voice goes peer-to-peer or through Talk's TURN server, encrypted with DTLS-SRTP, and never passes through PHP. Virtual Office does not record it. The microphone opens only when someone turns voice on. Nextcloud only passes the connection setup between the two browsers and deletes it once read, after 30 seconds at the latest.
 - Office cards in Talk and Text are cached by Nextcloud for up to an hour. The cached part only says "Virtual Office"; the name and people count are fetched for each viewer and only shown to members.
 - As with any Nextcloud request, your web server and database may write their own logs and backups. Their retention is up to you.
 
@@ -77,6 +90,9 @@ When Talk or Teams is disabled, admins can still list, edit and delete offices o
 | Removing someone from a Team takes effect only after minutes | Circles applies web changes through a loopback request to your own server. Run `occ circles:check` and fix the loopback address. |
 | "Virtual Office was updated. Reload the page" | The browser still runs an older version. Reloading fixes it. |
 | "This Talk conversation is not available" | The conversation is no longer shared with the Team, or Talk is disabled for the user. |
+| "Turn on voice" is missing | Voice needs HTTPS and **Allow voice**. Check the address and the setting. |
+| Voice turns on but people never hear each other | Direct connections are blocked. Add a TURN server in Talk's settings. |
+| "Change the layout when nobody is inside" | The layout of an office changes only while it is empty. Ask people to leave, or wait until they did. |
 
 ## Upgrade and uninstall
 
@@ -94,5 +110,5 @@ The empty tables stay in the database, as with other Nextcloud apps.
 
 Use system cron so these run on time. With AJAX or Webcron they run only when people use Nextcloud.
 
-- `ExpirePresence` runs every 5 minutes. It removes presences whose heartbeats stopped while nobody else was in the office, re-checks access of people inside offices nobody is viewing, and deletes unanswered knocks, expired arrival requests and expired "Today" notes. Normal cleanup happens during requests; the job catches the rest.
+- `ExpirePresence` runs every 5 minutes. It removes presences whose heartbeats stopped while nobody else was in the office, re-checks access of people inside offices nobody is viewing, and deletes unanswered knocks, expired arrival requests, expired "Today" notes and voice signals nobody picked up. Normal cleanup happens during requests; the job catches the rest.
 - `PairRoulette` runs every 7 days and pairs the people who joined coffee roulette.

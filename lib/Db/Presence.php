@@ -47,6 +47,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setNote(?string $note)
  * @method string|null getBirthday()
  * @method void setBirthday(?string $monthDay)
+ * @method bool getVoice()
+ * @method void setVoice(bool $voice)
  */
 class Presence extends Entity {
 	protected int $officeId = 0;
@@ -66,6 +68,8 @@ class Presence extends Entity {
 	protected ?string $note = null;
 	/** "MM-DD" when the person shares their birth date. */
 	protected ?string $birthday = null;
+	/** Voice is on: the tab may exchange WebRTC signals with others nearby. */
+	protected bool $voice = false;
 
 	public function __construct() {
 		$this->addType('officeId', 'integer');
@@ -74,6 +78,7 @@ class Presence extends Entity {
 		$this->addType('leaseUntil', 'integer');
 		$this->addType('authorizedUntil', 'integer');
 		$this->addType('enteredAt', 'integer');
+		$this->addType('voice', 'boolean');
 	}
 
 	/** Insert every column, including values equal to the property defaults. */

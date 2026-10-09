@@ -47,13 +47,18 @@ class AdminController extends OCSController {
 	}
 
 	#[ApiRoute(verb: 'PUT', url: '/api/v1/admin/settings')]
-	public function update(?int $roomCapacity = null, ?bool $instanceOffices = null): DataResponse {
-		return $this->respond(function () use ($roomCapacity, $instanceOffices) {
+	public function update(?int $roomCapacity = null, ?bool $instanceOffices = null, ?bool $voice = null): DataResponse {
+		return $this->respond(function () use ($roomCapacity, $instanceOffices, $voice) {
 			if ($roomCapacity !== null) {
 				$this->settings->setRoomCapacity($roomCapacity);
 			}
 			if ($instanceOffices !== null) {
 				$this->settings->setInstanceOfficesEnabled($instanceOffices);
+			}
+			if ($voice !== null && $voice !== $this->settings->voiceEnabled()) {
+				$this->settings->setVoiceEnabled($voice);
+				// People with voice on stop at once when it is turned off.
+				$this->room->announceSettings();
 			}
 			return $this->settings->toArray() + ['clientPush' => $this->push->isAvailable()];
 		});

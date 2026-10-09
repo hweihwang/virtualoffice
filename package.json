@@ -1,6 +1,6 @@
 {
 	"name": "virtualoffice",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"private": true,
 	"description": "A small shared office in Nextcloud. See who's around and drop by.",
 	"license": "AGPL-3.0-or-later",

@@ -3,7 +3,7 @@ import type { Cell } from '../shared/catalog.ts'
  * SPDX-FileCopyrightText: 2026 Hoang Pham
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import type { Audience, CallState, DeskList, EventBatch, FocusState, OfficeDefinition, Participant, Preferences, Snapshot, TeamResource } from './types.ts'
+import type { Audience, CallState, DeskList, EventBatch, FocusState, MusicState, OfficeDefinition, Participant, Preferences, Snapshot, TeamResource } from './types.ts'
 
 import axios, { isAxiosError } from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
@@ -49,7 +49,7 @@ export const api = {
 		? request<OfficeDefinition[]>('get', '/offices', { search, limit: 50, offset })
 		: request<OfficeDefinition[]>('post', '/offices/directory', { search, limit: 50, offset, conversations }),
 	getOffice: (token: string) => request<OfficeDefinition>('get', `/offices/${token}`),
-	createOffice: (title: string, audience: Pick<Audience, 'kind' | 'id'>, managerUid?: string) => request<OfficeDefinition>('post', '/offices', { title, audience, managerUid }),
+	createOffice: (title: string, audience: Pick<Audience, 'kind' | 'id'>, managerUid?: string, layoutId?: string) => request<OfficeDefinition>('post', '/offices', { title, audience, managerUid, layoutId }),
 	updateOffice: (token: string, revision: number, patch: Record<string, unknown>) => request<OfficeDefinition>('patch', `/offices/${token}`, patch, { 'If-Match': `"${revision}"` }),
 	deleteOffice: (token: string, revision: number) => request<[]>('delete', `/offices/${token}`, undefined, { 'If-Match': `"${revision}"` }),
 	audiences: (search = '') => request<Audience[]>('get', '/audiences', { search }),
@@ -64,7 +64,7 @@ export const api = {
 	liftRemoval: (token: string, uid: string) => request<OfficeDefinition>('delete', `/offices/${token}/removals`, { uid }),
 
 	enter: (token: string, session: string, takeover: boolean) => request<Snapshot>('post', `/offices/${token}/room/enter`, { session, takeover }),
-	poll: (token: string, session: string, rev: number) => request<({ changed: false, rev: number, serverTime: number }) | ({ changed: true } & Snapshot)>('get', `/offices/${token}/room`, { session, rev }),
+	poll: (token: string, session: string, rev: number) => request<({ changed: false, rev: number, serverTime: number, signals?: Signal[] }) | ({ changed: true, signals?: Signal[] } & Snapshot)>('get', `/offices/${token}/room`, { session, rev }),
 	move: (token: string, session: string, path: Cell[]) => request<OwnChange>('post', `/offices/${token}/room/move`, { session, path }),
 	stop: (token: string, session: string) => request<OwnChange>('post', `/offices/${token}/room/stop`, { session }),
 	emote: (token: string, session: string, emote: string) => request<OwnChange>('post', `/offices/${token}/room/emote`, { session, emote }),
@@ -74,6 +74,10 @@ export const api = {
 	leave: (token: string, session: string) => request<[]>('post', `/offices/${token}/room/leave`, { session }),
 	focus: (token: string, session: string, minutes: number) => request<{ focus: FocusState | null, serverTime: number }>('post', `/offices/${token}/room/focus`, { session, minutes }),
 	leaveFocus: (token: string, session: string) => request<{ focus: FocusState | null, serverTime: number }>('post', `/offices/${token}/room/focus/leave`, { session }),
+	startMusic: (token: string, session: string, tracks: { fileId: number, durationMs: number }[]) => request<{ music: MusicState | null, serverTime: number }>('post', `/offices/${token}/room/music`, { session, tracks }),
+	stopMusic: (token: string, session: string) => request<{ music: MusicState | null, serverTime: number }>('post', `/offices/${token}/room/music/stop`, { session }),
+	voice: (token: string, session: string, on: boolean) => request<OwnChange>('post', `/offices/${token}/room/voice`, { session, on }),
+	signal: (token: string, session: string, to: string, body: SignalBody) => request<{ id: number, serverTime: number }>('post', `/offices/${token}/room/signal`, { session, to, body }),
 	roulette: (token: string) => request<RouletteState>('get', `/offices/${token}/roulette`),
 	joinRoulette: (token: string) => request<RouletteState>('put', `/offices/${token}/roulette`),
 	leaveRoulette: (token: string) => request<RouletteState>('delete', `/offices/${token}/roulette`),
@@ -128,6 +132,20 @@ export type KnockEvent
 	= | { kind: 'knock', id: number, office: string, from: string, name: string }
 		| { kind: 'answer', answer: KnockAnswer, office: string, from: string, name: string, link: string | null }
 
+/** A WebRTC offer, answer or goodbye between two tabs with voice on; candidates travel in the SDP. */
+export interface SignalBody {
+	type: 'offer' | 'answer' | 'bye'
+	sdp?: string
+}
+
+/** A signal for this tab, from Client Push or the poll. */
+export interface Signal {
+	id: number
+	from: string
+	to?: string
+	body: SignalBody
+}
+
 export interface TodayNote {
 	text: string
 	expiresAt: number
@@ -143,6 +161,7 @@ export interface AdminSettings {
 	roomCapacity: number
 	maxRoomCapacity: number
 	instanceOffices: boolean
+	voice: boolean
 	clientPush: boolean
 }
 

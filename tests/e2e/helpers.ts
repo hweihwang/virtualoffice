@@ -45,8 +45,8 @@ export class Api {
 		return { status: response.status(), data: body }
 	}
 
-	async raw(method: string, path: string) {
-		return this.ctx.fetch(path, { method, maxRedirects: 0 })
+	async raw(method: string, path: string, headers: Record<string, string> = {}, data?: string | Buffer) {
+		return this.ctx.fetch(path, { method, headers, data, maxRedirects: 0 })
 	}
 
 	dispose() {
@@ -83,6 +83,39 @@ export async function removeFromTeam(owner: Api, teamId: string, uid: string): P
 	if (result.status !== 200) {
 		throw new Error(`Could not remove ${uid} from Team: ${result.status}`)
 	}
+}
+
+/** A short mono WAV with a tone, as a file anyone's browser can play. */
+export function toneWav(seconds = 4, hz = 440, rate = 8000): Buffer {
+	const samples = seconds * rate
+	const wav = Buffer.alloc(44 + samples * 2)
+	wav.write('RIFF', 0)
+	wav.writeUInt32LE(36 + samples * 2, 4)
+	wav.write('WAVEfmt ', 8)
+	wav.writeUInt32LE(16, 16)
+	wav.writeUInt16LE(1, 20)
+	wav.writeUInt16LE(1, 22)
+	wav.writeUInt32LE(rate, 24)
+	wav.writeUInt32LE(rate * 2, 28)
+	wav.writeUInt16LE(2, 32)
+	wav.writeUInt16LE(16, 34)
+	wav.write('data', 36)
+	wav.writeUInt32LE(samples * 2, 40)
+	for (let i = 0; i < samples; i++) {
+		wav.writeInt16LE(Math.round(Math.sin(2 * Math.PI * hz * i / rate) * 12000), 44 + i * 2)
+	}
+	return wav
+}
+
+/** Uploads a file to the user's Files and returns its file id. */
+export async function upload(api: Api, user: string, name: string, data: Buffer, type: string): Promise<number> {
+	const path = `/remote.php/dav/files/${user}/${encodeURIComponent(name)}`
+	const put = await api.raw('PUT', path, { 'Content-Type': type }, data)
+	if (put.status() >= 300) {
+		throw new Error(`Upload failed: ${put.status()}`)
+	}
+	const found = await api.raw('PROPFIND', path, { Depth: '0', 'Content-Type': 'application/xml' }, '<d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns"><d:prop><oc:fileid/></d:prop></d:propfind>')
+	return Number((await found.text()).match(/<oc:fileid>(\d+)<\/oc:fileid>/)![1])
 }
 
 export function uniqueName(prefix: string): string {

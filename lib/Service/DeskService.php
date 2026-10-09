@@ -44,29 +44,32 @@ class DeskService {
 		private Catalog $catalog,
 		private Clock $clock,
 		private BirthdayService $birthdays,
+		private TimeService $time,
 	) {
 	}
 
 	/**
-	 * Desks with their owners, and the status of owners and people inside.
+	 * Desks with their owners, and the status, local time zone and working
+	 * hours of owners and people inside.
 	 *
-	 * @return array{desks: list<array{deskId: string, uid: string, name: string, note: ?string, birthday: bool}>, statuses: array<string, array{status: string, message: ?string, icon: ?string, clearAt: ?int}>}
+	 * @return array{desks: list<array{deskId: string, uid: string, name: string, note: ?string, birthday: bool}>, statuses: array<string, array{status: string, message: ?string, icon: ?string, clearAt: ?int}>, times: array<string, array{timeZone: ?string, hours: array}>}
 	 * @throws ApiException
 	 */
 	public function list(IUser $user, Office $office): array {
 		$this->accessPolicy->assertCanEnter($user, $office);
 		$now = $this->clock->nowMs();
+		$seats = $this->catalog->deskIds($this->catalog->layout($office->getLayoutId()));
 		$desks = [];
 		foreach ($this->desks->findByOffice($office->getId()) as $desk) {
 			// A temporary removal hides the desk without freeing it.
-			if ($this->isKept($desk, $office, $now) && $this->accessPolicy->removedUntil($office, $desk->getUid()) === null) {
+			if (in_array($desk->getDeskId(), $seats, true) && $this->isKept($desk, $office, $now) && $this->accessPolicy->removedUntil($office, $desk->getUid()) === null) {
 				$owner = $this->userManager->get($desk->getUid());
 				$desks[] = [
 					'deskId' => $desk->getDeskId(),
 					'uid' => $desk->getUid(),
 					'name' => $this->userManager->getDisplayName($desk->getUid()) ?? $desk->getUid(),
 					'note' => $this->preferences->today($desk->getUid(), $now)['text'] ?? null,
-					'birthday' => $owner !== null && BirthdayService::isToday($this->birthdays->monthDay($owner), $now),
+					'birthday' => $owner !== null && $this->birthdays->isToday($owner->getUID(), $this->birthdays->monthDay($owner), $now),
 				];
 			}
 		}
@@ -76,7 +79,8 @@ class DeskService {
 				$uids[] = $row->getUid();
 			}
 		}
-		return ['desks' => $desks, 'statuses' => $this->statuses->forUsers(array_values(array_unique($uids)))];
+		$uids = array_values(array_unique($uids));
+		return ['desks' => $desks, 'statuses' => $this->statuses->forUsers($uids), 'times' => $this->time->forUsers($uids)];
 	}
 
 	/**

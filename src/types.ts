@@ -33,6 +33,8 @@ export interface OfficeDefinition {
 	title: string
 	audience: Audience
 	layoutId: string
+	/** People the office holds: the admin setting, at most what the layout fits. */
+	capacity: number
 	revision: number
 	config: { decor: Record<string, string>, talk: TalkBinding | null }
 	permissions: { isMember: boolean, canEnter: boolean, canManage: boolean }
@@ -66,6 +68,8 @@ export interface Participant {
 	note: string | null
 	/** Birthday today, when they share their birth date. */
 	birthday: boolean
+	/** The tab to send voice signals to, while the person has voice on. */
+	voice?: string | null
 }
 
 /** A shared focus session in the office. */
@@ -108,15 +112,38 @@ export interface ResourceView extends TeamResource {
 	badge: string | null
 }
 
+/** Weekly working hours: ranges in minutes after local midnight, per ISO weekday (1 is Monday). */
+export interface WorkingHours {
+	timeZone: string | null
+	days: Record<number, [number, number][]>
+	/** Not set in Personal settings › Availability; Monday to Friday, 09:00 to 17:00. */
+	default: boolean
+}
+
+/** A person's time zone from Personal settings, and their working hours. */
+export interface TimeInfo {
+	timeZone: string | null
+	hours: WorkingHours
+}
+
 export interface DeskList {
 	desks: DeskOwner[]
 	statuses: Record<string, UserStatusInfo>
+	times: Record<string, TimeInfo>
 }
 
 export interface PropState {
 	id: string
 	startedAt: number
 	endsAt: number
+}
+
+/** The office's music player while it plays: files of the person who started it, in a loop. */
+export interface MusicState {
+	uid: string
+	name: string
+	startedAt: number
+	tracks: { title: string, durationMs: number }[]
 }
 
 export interface Snapshot {
@@ -134,6 +161,9 @@ export interface Snapshot {
 	call: CallState | null
 	desksRev: number
 	focus: FocusState | null
+	/** Whether the admin allows voice. */
+	voiceAllowed?: boolean
+	music?: MusicState | null
 	you?: { session: string, generation: number }
 }
 
@@ -141,10 +171,11 @@ export type RoomEvent
 	= | { kind: 'upsert', participant: Participant }
 		| { kind: 'remove', uid: string, reason: string }
 		| { kind: 'prop', prop: PropState, uid: string }
-		| { kind: 'config', configRev: number, decor: Record<string, string>, title: string }
+		| { kind: 'config', configRev: number, decor: Record<string, string>, title: string, voiceAllowed?: boolean }
 		| { kind: 'call', call: CallState | null }
 		| { kind: 'desks', desksRev: number }
 		| { kind: 'focus', focus: FocusState | null }
+		| { kind: 'music', music: MusicState | null }
 		| { kind: 'closed' }
 
 export interface EventBatch {
@@ -156,7 +187,15 @@ export interface EventBatch {
 
 export interface Preferences {
 	appearance: Appearance
-	ui: { view: 'scene' | 'list', reducedEffects: boolean, announcements: boolean }
+	ui: {
+		view: 'scene' | 'list'
+		reducedEffects: boolean
+		announcements: boolean
+		/** 0 to 100; 0 turns the music off. */
+		musicVolume?: number
+		voiceMode?: 'push' | 'open'
+		voiceVolume?: number
+	}
 }
 
 export interface InitialConfig {
@@ -170,4 +209,5 @@ export interface InitialConfig {
 	catalogHash: string
 	roomCapacity: number
 	instanceOffices: boolean
+	voice: boolean
 }

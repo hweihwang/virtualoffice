@@ -22,6 +22,13 @@ export default defineConfig({
 	projects: [
 		{ name: 'api', testMatch: /api\.spec\.ts/ },
 		{ name: 'chromium', testMatch: /room\.spec\.ts|a11y\.spec\.ts|talk\.spec\.ts/, use: { ...devices['Desktop Chrome'] } },
+		{
+			name: 'voice',
+			testMatch: /voice\.spec\.ts/,
+			// A fake microphone that plays a beep, granted without a prompt.
+			use: { ...devices['Desktop Chrome'], permissions: ['microphone'], launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] } },
+		},
+		{ name: 'voice-webkit', testMatch: /voice\.spec\.ts/, use: { ...devices['Desktop Safari'], permissions: ['microphone'] } },
 		{ name: 'firefox', testMatch: /room\.spec\.ts/, use: { ...devices['Desktop Firefox'] } },
 		{ name: 'webkit', testMatch: /room\.spec\.ts/, use: { ...devices['Desktop Safari'] } },
 		{

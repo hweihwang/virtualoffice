@@ -58,4 +58,19 @@ class DeskMapper extends QBMapper {
 			->andWhere($qb->expr()->eq('uid_key', $qb->createNamedParameter($uidKey)));
 		$qb->executeStatement();
 	}
+
+	/**
+	 * Frees desks that are not in the given list, after a layout change.
+	 *
+	 * @param list<string> $deskIds
+	 */
+	public function deleteOutside(int $officeId, array $deskIds): void {
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete($this->getTableName())
+			->where($qb->expr()->eq('office_id', $qb->createNamedParameter($officeId, IQueryBuilder::PARAM_INT)));
+		if ($deskIds !== []) {
+			$qb->andWhere($qb->expr()->notIn('desk_id', $qb->createNamedParameter($deskIds, IQueryBuilder::PARAM_STR_ARRAY)));
+		}
+		$qb->executeStatement();
+	}
 }

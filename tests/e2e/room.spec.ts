@@ -5,7 +5,7 @@
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '@playwright/test'
-import { Api, clearPresence, createTeam, login, sql, uniqueName, waitFor } from './helpers.ts'
+import { Api, clearPresence, createTeam, login, occ, sql, toneWav, uniqueName, upload, waitFor } from './helpers.ts'
 
 const TILE = 40
 const TRANSPORT = process.env.VO_TRANSPORT ?? 'push'
@@ -183,6 +183,8 @@ test('a knock shows in the office and the answer comes back', async ({ browser }
 	const b = await login(browser, 'bao')
 	await enter(a, token)
 	await enter(b, token)
+	// At night in Alice's time zone, the office asks first.
+	b.on('dialog', (dialog) => void dialog.accept())
 	await b.getByRole('button', { name: 'Actions for Alice' }).click()
 	await b.getByRole('menuitem', { name: 'Knock: got 2 minutes?' }).click()
 	await expect(b.locator('.office__toast')).toHaveText('You knocked. Alice gets a notification.')
@@ -417,4 +419,186 @@ test('people outside the audience only see that the office is not available', as
 	await expect(c.getByText('Office not available')).toBeVisible()
 	await expect(c.getByRole('button', { name: 'Enter office' })).toHaveCount(0)
 	await c.context().close()
+})
+
+test('a small office takes the season its manager picks', async ({ browser }) => {
+	const created = await alice.call('POST', '/offices', { title: uniqueName('Small'), audience: { kind: 'team', id: teamId }, layoutId: 'compact-office-v1' })
+	const a = await login(browser, 'alice')
+	await a.goto(`/index.php/apps/virtualoffice/o/${created.data.token}`)
+	await expect(a.locator('.landing__preview')).toHaveAttribute('src', /office-preview-compact-office-v1\.webp$/)
+	await a.getByRole('button', { name: 'Settings', exact: true }).click()
+	const dialog = a.getByRole('dialog', { name: 'Office settings' })
+	await expect(dialog.locator('.settings__layout select')).toHaveValue('compact-office-v1')
+	await dialog.getByRole('combobox', { name: 'Season', exact: true }).selectOption({ label: 'Lunar New Year' })
+	await dialog.getByRole('button', { name: 'Save' }).click()
+	await expect(dialog).toHaveCount(0)
+	await a.getByRole('button', { name: 'Enter office' }).click()
+	await expect(a.locator('.vo-stage')).toHaveCSS('width', `${22 * TILE}px`)
+	await expect(a.locator('.vo-season[data-season="lunar"]')).toHaveCount(1)
+	await expect(a.locator('.room__meta')).toContainText('1 of 12 here')
+	await a.context().close()
+})
+
+/** Keeps the audio elements the office plays, so the test can look at them. */
+function watchAudio() {
+	const w = window as any
+	w.__media = new Set<HTMLMediaElement>()
+	const play = HTMLMediaElement.prototype.play
+	HTMLMediaElement.prototype.play = function() {
+		w.__media.add(this)
+		return play.call(this)
+	}
+}
+
+/** Where the office's music is in each window: playing source and position in seconds. */
+function musicState(page: Page) {
+	return page.evaluate(() => [...(window as any).__media as Set<HTMLMediaElement>]
+		.filter((m) => !m.srcObject && m.src !== '')
+		.map((m) => ({ playing: !m.paused, time: m.currentTime }))[0] ?? null)
+}
+
+test('music plays in sync near the player and stops when its owner leaves', async ({ browser }) => {
+	const token = await newOffice()
+	const name = `office-tone-${uniqueName('x').slice(2)}.wav`
+	await upload(alice, 'alice', name, toneWav(30), 'audio/wav')
+	const a = await login(browser, 'alice')
+	const b = await login(browser, 'bao')
+	await a.addInitScript(watchAudio)
+	await b.addInitScript(watchAudio)
+	await enter(a, token)
+	await enter(b, token)
+
+	const common = a.locator('.people__zone').filter({ has: a.getByRole('heading', { name: /Common room/ }) })
+	await common.getByRole('button', { name: 'Play music' }).click()
+	const picker = a.getByRole('dialog', { name: 'Choose music to play for the office' })
+	await picker.getByRole('row', { name: new RegExp(name.replace('.wav', '')) }).click()
+	await picker.getByRole('button', { name: 'Play' }).click()
+	// Alice walks to the player and starts it; both see what plays.
+	await expect(common.getByText(/Now playing: office-tone-.* · Alice/)).toBeVisible({ timeout: 15_000 })
+	await expect(b.locator('.people__music')).toContainText('· Alice', { timeout: VISIBLE_WITHIN + 1000 })
+	await expect(a.locator('.vo-player-fx')).toHaveClass(/vo-active/)
+
+	// Bảo walks next to the player too: both hear the same moment.
+	await clickCell(b, [13, 3])
+	await expect.poll(async () => (await musicState(a))?.playing, { timeout: 10_000 }).toBe(true)
+	await expect.poll(async () => (await musicState(b))?.playing, { timeout: 15_000 }).toBe(true)
+	// After a few seconds both play the same moment: in one room they sound as one.
+	await a.waitForTimeout(5000)
+	const [ta, tb] = await Promise.all([musicState(a), musicState(b)])
+	console.log(`music positions: alice ${ta!.time.toFixed(3)} s, bao ${tb!.time.toFixed(3)} s`)
+	expect(Math.abs(ta!.time - tb!.time)).toBeLessThan(0.1)
+
+	// Out of hearing at the focus desks, the music stops for Bảo but not for Alice.
+	await b.locator('.people__zone').filter({ has: b.getByRole('heading', { name: /Focus desks/ }) }).getByRole('button', { name: 'Go here' }).click()
+	await expect.poll(async () => (await musicState(b))?.playing ?? false, { timeout: 15_000 }).toBe(false)
+	expect((await musicState(a))?.playing).toBe(true)
+
+	// The music is Alice's file: it stops when she leaves.
+	await a.getByRole('button', { name: 'Leave' }).click()
+	await expect(b.locator('.people__music')).toHaveCount(0, { timeout: VISIBLE_WITHIN + 1000 })
+	await expect(b.locator('.vo-player-fx')).not.toHaveClass(/vo-active/)
+	await a.context().close()
+	await b.context().close()
+})
+
+/** Position of the office's music in a window, minus how long its sound takes to reach the speakers. */
+function heardAt(page: Page) {
+	return page.evaluate(() => {
+		const media = [...(window as any).__media as Set<HTMLMediaElement>].find((m) => !m.srcObject && m.src !== '' && !m.paused)
+		const context = new AudioContext()
+		const latency = (context.outputLatency || context.baseLatency || 0)
+		void context.close()
+		return media ? media.currentTime - latency : null
+	})
+}
+
+test('Chromium, Firefox and Safari play the same moment, so one room hears no echo', async ({ browser, browserName, playwright }) => {
+	test.skip(browserName !== 'chromium', 'Starts the other engines itself')
+	const team = createTeam('alice', uniqueName('Three engines'), ['bao', 'chi'])
+	const token = (await alice.call('POST', '/offices', { title: uniqueName('Engines'), audience: { kind: 'team', id: team } })).data.token
+	const name = `office-click-${uniqueName('x').slice(2)}.wav`
+	await upload(alice, 'alice', name, toneWav(60), 'audio/wav')
+	const firefox = await playwright.firefox.launch()
+	const webkit = await playwright.webkit.launch()
+	try {
+		const a = await login(browser, 'alice')
+		const b = await login(firefox, 'bao')
+		const c = await login(webkit, 'chi')
+		for (const page of [a, b, c]) {
+			await page.addInitScript(watchAudio)
+			await enter(page, token)
+		}
+		const common = a.locator('.people__zone').filter({ has: a.getByRole('heading', { name: /Common room/ }) })
+		await common.getByRole('button', { name: 'Play music' }).click()
+		const picker = a.getByRole('dialog', { name: 'Choose music to play for the office' })
+		await picker.getByRole('row', { name: new RegExp(name.replace('.wav', '')) }).click()
+		await picker.getByRole('button', { name: 'Play' }).click()
+		await expect(common.getByText(/Now playing/)).toBeVisible({ timeout: 15_000 })
+		await clickCell(b, [13, 3])
+		await clickCell(c, [11, 3])
+		for (const page of [a, b, c]) {
+			await expect.poll(async () => (await musicState(page))?.playing, { timeout: 15_000 }).toBe(true)
+		}
+		// Let every window settle (a late seek corrects itself after two seconds), then sample a few times.
+		await a.waitForTimeout(8000)
+		for (let i = 0; i < 4; i++) {
+			const times = (await Promise.all([a, b, c].map(heardAt))) as number[]
+			console.log(`heard at: chromium ${times[0].toFixed(3)} s, firefox ${times[1].toFixed(3)} s, webkit ${times[2].toFixed(3)} s`)
+			expect(Math.max(...times) - Math.min(...times)).toBeLessThan(0.06)
+			await a.waitForTimeout(1000)
+		}
+	} finally {
+		await firefox.close()
+		await webkit.close()
+	}
+})
+
+/** A fixed-offset zone where it is now between 01:00 and 05:00, outside anyone's default hours. */
+function nightZone(): string {
+	for (let offset = -12; offset <= 14; offset++) {
+		const hour = (new Date().getUTCHours() + offset + 24) % 24
+		if (hour >= 1 && hour <= 5) {
+			// Etc zones count the other way round.
+			return offset === 0 ? 'Etc/UTC' : `Etc/GMT${offset > 0 ? '-' : '+'}${Math.abs(offset)}`
+		}
+	}
+	throw new Error('No night zone found')
+}
+
+test('local times, shared hours and a word before knocking at night', async ({ browser }) => {
+	const token = await newOffice()
+	const night = nightZone()
+	occ('user:setting', 'alice', 'core', 'timezone', 'Europe/Berlin')
+	occ('user:setting', 'bao', 'core', 'timezone', night)
+	try {
+		const a = await login(browser, 'alice', { timezoneId: 'Europe/Berlin' })
+		const b = await login(browser, 'bao', { timezoneId: 'Europe/Berlin' })
+		await enter(a, token)
+		await enter(b, token)
+		const bao = a.locator('.person').filter({ hasText: 'Bảo' })
+		await expect(bao.locator('.clock')).toHaveText(/\d{1,2}:\d{2}/, { timeout: 10_000 })
+		await expect(bao.locator('.clock__night')).toBeVisible()
+		// Two people with a known zone: the header says whether they share hours today.
+		await expect(a.locator('.room__shared')).toHaveText(/^(Shared hours today: .+|No shared hours today)$/)
+		// Alice never set her working hours.
+		await expect(a.locator('.controls__hint').first()).toContainText('Set your working hours')
+		await expect(a.locator('.controls__hint a').first()).toHaveAttribute('href', /\/settings\/user\/availability$/)
+		// Bảo's browser runs on Berlin time, but his Nextcloud says otherwise.
+		await expect(b.locator('.controls__hint').first()).toContainText(`Your Nextcloud time zone is ${night}`)
+
+		let asked = ''
+		a.once('dialog', (dialog) => {
+			asked = dialog.message()
+			void dialog.dismiss()
+		})
+		await a.getByRole('button', { name: 'Actions for Bảo' }).click()
+		await a.getByRole('menuitem', { name: 'Knock: got 2 minutes?' }).click()
+		await expect.poll(() => asked).toMatch(/^It is .+ for Bảo, outside their working hours\. Knock anyway\?$/)
+		// Dismissed: no knock was sent.
+		await expect(a.locator('.office__toast')).not.toContainText('You knocked')
+		await a.context().close()
+		await b.context().close()
+	} finally {
+		occ('user:setting', 'bao', 'core', 'timezone', 'Europe/Berlin')
+	}
 })

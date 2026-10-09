@@ -4,8 +4,8 @@ import type { Direction, Trajectory } from '../../shared/movement.ts'
  * SPDX-FileCopyrightText: 2026 Hoang Pham
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import type { OwnChange } from '../api.ts'
-import type { CallState, DeskList, DeskOwner, EventBatch, FocusState, Participant, PropState, ResourceView, RoomEvent, Snapshot, UserStatusInfo } from '../types.ts'
+import type { OwnChange, Signal, SignalBody } from '../api.ts'
+import type { CallState, DeskList, DeskOwner, EventBatch, FocusState, MusicState, Participant, PropState, ResourceView, RoomEvent, Snapshot, TimeInfo, UserStatusInfo } from '../types.ts'
 import type { Actor, Pair } from './pairing.ts'
 
 import { reactive } from 'vue'
@@ -22,13 +22,17 @@ export type RoomStatus
 
 export interface RoomApi {
 	enter(token: string, session: string, takeover: boolean): Promise<Snapshot>
-	poll(token: string, session: string, rev: number): Promise<{ changed: false, rev: number, serverTime: number } | ({ changed: true } & Snapshot)>
+	poll(token: string, session: string, rev: number): Promise<{ changed: false, rev: number, serverTime: number, signals?: Signal[] } | ({ changed: true, signals?: Signal[] } & Snapshot)>
 	move(token: string, session: string, path: Cell[]): Promise<OwnChange>
 	stop(token: string, session: string): Promise<OwnChange>
 	emote(token: string, session: string, emote: string): Promise<OwnChange>
 	mode(token: string, session: string, mode: string): Promise<OwnChange>
 	profile(token: string, session: string): Promise<OwnChange>
 	interact(token: string, session: string, prop: string): Promise<{ outcome: string, serverTime: number }>
+	startMusic(token: string, session: string, tracks: { fileId: number, durationMs: number }[]): Promise<{ music: MusicState | null, serverTime: number }>
+	stopMusic(token: string, session: string): Promise<{ music: MusicState | null, serverTime: number }>
+	voice(token: string, session: string, on: boolean): Promise<OwnChange>
+	signal(token: string, session: string, to: string, body: SignalBody): Promise<{ id: number, serverTime: number }>
 	leave(token: string, session: string): Promise<unknown>
 	focus(token: string, session: string, minutes: number): Promise<{ focus: FocusState | null, serverTime: number }>
 	leaveFocus(token: string, session: string): Promise<{ focus: FocusState | null, serverTime: number }>
@@ -55,6 +59,8 @@ export interface PersonView {
 	status: UserStatusInfo | null
 	birthday: boolean
 	focusing: boolean
+	/** The tab to send voice signals to, while voice is on. */
+	voice: string | null
 }
 
 export type Announcement
@@ -62,7 +68,7 @@ export type Announcement
 		| { kind: 'pair', names: [string, string], emote: string, withYou: boolean }
 		| { kind: 'focus-done', minutes: number }
 
-export const POLL_INTERVAL = { polling: 1200, pushed: 5000, hidden: 8000, hiddenPushed: 15000 }
+export const POLL_INTERVAL = { polling: 1200, pushed: 5000, hidden: 8000, hiddenPushed: 15000, connecting: 300 }
 /** How often desks and statuses are refreshed while the office is visible; statuses have no events. */
 export const DESKS_INTERVAL = 60_000
 /** Someone new arrived: fetch their status soon, but not for every arrival in a burst. */
@@ -99,7 +105,12 @@ export class RoomSession {
 		configRev: 0,
 		desks: [] as DeskOwner[],
 		statuses: {} as Record<string, UserStatusInfo>,
+		/** Time zone and working hours of desk owners and people inside. */
+		times: {} as Record<string, TimeInfo>,
 		focus: null as FocusState | null,
+		music: null as MusicState | null,
+		/** Whether the admin allows voice. */
+		voiceAllowed: false,
 		/** Team resources on the wall, set by the page that knows the Team. */
 		resources: [] as ResourceView[],
 	})
@@ -121,12 +132,17 @@ export class RoomSession {
 	private moveInFlight = false
 	private pendingMove: (() => Cell[] | null) | null = null
 	private heldDirection: Direction | null = null
-	private pendingInteract: { prop: string, timer: ReturnType<typeof setTimeout> } | null = null
+	/** Something to do on arrival at a prop or the music player. */
+	private pendingInteract: { key: string, run: (afterWalk: boolean) => void, timer: ReturnType<typeof setTimeout> } | null = null
 	private visible = true
 	private desksRev = -1
 	private deskTimer: ReturnType<typeof setTimeout> | null = null
 	private desksFetchedAt = 0
 	private focusTimer: ReturnType<typeof setTimeout> | null = null
+	/** Voice is waiting for an answer: without Client Push, signals only come with the poll. */
+	private fastPoll = false
+	/** Receives voice signals that came with a poll. */
+	onSignals: ((signals: Signal[]) => void) | null = null
 
 	constructor(
 		private token: string,
@@ -134,10 +150,15 @@ export class RoomSession {
 		private api: RoomApi,
 		private push: PushChannel | null,
 		private catalogHash: string,
-		layoutId: string,
+		private layoutId: string,
 		private onAnnounce: (announcement: Announcement) => void = () => {},
 	) {
 		this.layout = getLayout(layoutId)
+	}
+
+	/** A different catalog, or a manager switched the office to another layout. */
+	private isOutdated(snapshot: Snapshot): boolean {
+		return snapshot.catalogHash !== this.catalogHash || snapshot.layoutId !== this.layoutId
 	}
 
 	get sessionId(): string {
@@ -146,6 +167,10 @@ export class RoomSession {
 
 	get layoutData(): Layout {
 		return this.layout
+	}
+
+	get layoutKey(): string {
+		return this.layoutId
 	}
 
 	get isActive(): boolean {
@@ -160,7 +185,7 @@ export class RoomSession {
 		this.state.errorCode = ''
 		try {
 			const snapshot = await this.timed(() => this.api.enter(this.token, this.session, takeover))
-			if (snapshot.catalogHash !== this.catalogHash) {
+			if (this.isOutdated(snapshot)) {
 				this.state.status = 'outdated'
 				await this.api.leave(this.token, this.session).catch(() => {})
 				return
@@ -313,6 +338,7 @@ export class RoomSession {
 	private applyDesks(list: DeskList): void {
 		this.state.desks = list.desks
 		this.state.statuses = list.statuses
+		this.state.times = list.times
 		this.refreshPeople()
 	}
 
@@ -448,45 +474,93 @@ export class RoomSession {
 	 */
 	useProp(propId: string): 'started' | 'walking' | 'unreachable' {
 		const prop = this.layout.props.find((p) => p.id === propId)
+		if (!prop) {
+			return 'unreachable'
+		}
+		return this.reach(prop.cell, prop.radius, `prop:${propId}`, (afterWalk) => void this.atSpot(`prop:${propId}`, () => this.api.interact(this.token, this.session, propId), afterWalk))
+	}
+
+	/**
+	 * Walk to the music player and play your own audio files there, for
+	 * everyone inside, while you stay.
+	 */
+	playMusic(tracks: { fileId: number, durationMs: number }[]): 'started' | 'walking' | 'unreachable' {
+		const player = this.layout.player
+		if (!player) {
+			return 'unreachable'
+		}
+		return this.reach(player.cell, player.radius, 'music', (afterWalk) => void this.atSpot('music', async () => {
+			const result = await this.api.startMusic(this.token, this.session, tracks)
+			this.state.music = result.music
+			return result
+		}, afterWalk))
+	}
+
+	/** Walk next to the music player. */
+	goToPlayer(): boolean {
+		const player = this.layout.player
+		return player !== undefined && this.reach(player.cell, player.radius, 'player', () => {}) !== 'unreachable'
+	}
+
+	/** Walk to the music player and stop it. */
+	stopMusic(): 'started' | 'walking' | 'unreachable' {
+		const player = this.layout.player
+		if (!player) {
+			return 'unreachable'
+		}
+		return this.reach(player.cell, player.radius, 'music', (afterWalk) => void this.atSpot('music', async () => {
+			const result = await this.api.stopMusic(this.token, this.session)
+			this.state.music = result.music
+			return result
+		}, afterWalk))
+	}
+
+	/**
+	 * Runs an action at a spot right away when standing within its radius,
+	 * otherwise walks to the free cell next to it that is farthest from
+	 * others and runs it on arrival.
+	 */
+	private reach(cell: Cell, radius: number, key: string, run: (afterWalk: boolean) => void): 'started' | 'walking' | 'unreachable' {
 		const own = this.ownMotion()
-		if (!prop || own === null || this.state.status !== 'active') {
+		if (own === null || this.state.status !== 'active') {
 			return 'unreachable'
 		}
 		const t = this.clock.serverNow()
 		const [x, y] = positionAt(own.trajectory, t)
-		if (!isMoving(own.trajectory, t) && Math.hypot(x - prop.cell[0], y - prop.cell[1]) <= prop.radius) {
-			this.interact(propId)
+		if (!isMoving(own.trajectory, t) && Math.hypot(x - cell[0], y - cell[1]) <= radius) {
+			run(false)
 			return 'started'
 		}
-		const spots = standingSpots(this.layout, prop.cell, prop.radius)
+		const spots = standingSpots(this.layout, cell, radius)
 		const from = roundCell(nextStop(own.trajectory, t + this.lead()).cell)
 		const others = [...this.motions].filter(([uid]) => uid !== this.uid).map(([, motion]) => roundCell(finalCell(motion.trajectory)))
 		// Farthest from the others first, so two people at a prop stand apart.
-		const room = (cell: Cell) => Math.min(3, ...others.map(([x, y]) => Math.max(Math.abs(x - cell[0]), Math.abs(y - cell[1]))))
+		const room = (spot: Cell) => Math.min(3, ...others.map(([ox, oy]) => Math.max(Math.abs(ox - spot[0]), Math.abs(oy - spot[1]))))
 		const best = spots
-			.map((cell) => ({ cell, room: room(cell), path: findPath(this.layout, from, cell) }))
+			.map((spot) => ({ cell: spot, room: room(spot), path: findPath(this.layout, from, spot) }))
 			.filter((s) => s.path !== null)
 			.sort((a, b) => b.room - a.room || a.path!.length - b.path!.length)[0]
 		if (!best) {
 			return 'unreachable'
 		}
 		this.walkTo(best.cell)
-		this.pendingInteract = { prop: propId, timer: setTimeout(() => this.interactOnArrival(propId), 300) }
+		this.pendingInteract = { key, run, timer: setTimeout(() => this.runOnArrival(key), 300) }
 		return 'walking'
 	}
 
-	private interactOnArrival(propId: string): void {
+	private runOnArrival(key: string): void {
+		const pending = this.pendingInteract
 		const own = this.ownMotion()
-		if (this.pendingInteract?.prop !== propId || own === null) {
+		if (pending?.key !== key || own === null) {
 			return
 		}
 		const t = this.clock.serverNow()
 		if (isMoving(own.trajectory, t) || this.moveInFlight) {
-			this.pendingInteract.timer = setTimeout(() => this.interactOnArrival(propId), 150)
+			pending.timer = setTimeout(() => this.runOnArrival(key), 150)
 			return
 		}
 		this.pendingInteract = null
-		this.interact(propId, true)
+		pending.run(true)
 	}
 
 	private cancelInteract(): void {
@@ -497,16 +571,21 @@ export class RoomSession {
 	}
 
 	/** The local arrival estimate can run ahead of the server, so retry one "out of reach" after walking. */
-	private async interact(propId: string, afterWalk = false): Promise<void> {
+	private async atSpot(key: string, command: () => Promise<{ serverTime: number }>, afterWalk = false): Promise<void> {
 		try {
-			await this.timed(() => this.api.interact(this.token, this.session, propId))
+			await this.timed(command)
 			this.schedule(0)
 		} catch (error) {
 			if (afterWalk && error instanceof ApiError && error.code === 'OUT_OF_REACH') {
-				this.pendingInteract = { prop: propId, timer: setTimeout(() => {
-					this.pendingInteract = null
-					void this.interact(propId)
-				}, 300) }
+				this.pendingInteract = {
+					key,
+					run: () => void this.atSpot(key, command),
+					timer: setTimeout(() => {
+						const pending = this.pendingInteract
+						this.pendingInteract = null
+						pending?.run(false)
+					}, 300),
+				}
 				return
 			}
 			this.handleCommandError(error)
@@ -523,6 +602,46 @@ export class RoomSession {
 
 	async refreshProfile(): Promise<void> {
 		await this.own(() => this.api.profile(this.token, this.session))
+	}
+
+	/** Voice on or off for this tab; others then see the microphone and may connect. */
+	async setVoice(on: boolean): Promise<void> {
+		if (this.state.status !== 'active') {
+			return
+		}
+		try {
+			this.applyOwn((await this.timed(() => this.api.voice(this.token, this.session, on))).participant)
+		} catch (error) {
+			// An admin just turned voice off; the visit goes on.
+			if (error instanceof ApiError && error.code === 'ACTION_DENIED') {
+				this.state.voiceAllowed = false
+				return
+			}
+			this.handleCommandError(error)
+		}
+	}
+
+	/** Sends a WebRTC signal to another tab with voice on. */
+	async signal(to: string, body: SignalBody): Promise<void> {
+		if (this.isActive) {
+			await this.api.signal(this.token, this.session, to, body)
+		}
+	}
+
+	/** Polls every 300 ms while voice waits for an answer and pushes do not arrive. */
+	setFastPoll(fast: boolean): void {
+		if (fast === this.fastPoll) {
+			return
+		}
+		this.fastPoll = fast
+		if (fast && this.isActive && !(this.state.pushActive && this.pushHealthy)) {
+			this.schedule(POLL_INTERVAL.connecting)
+		}
+	}
+
+	/** Whether pushes arrive, so voice signals do not need the poll. */
+	get pushing(): boolean {
+		return this.state.pushActive && this.pushHealthy
 	}
 
 	ownPosition(): Cell | null {
@@ -736,6 +855,7 @@ export class RoomSession {
 				this.state.decor = event.decor
 				this.state.title = event.title
 				this.state.configRev = event.configRev
+				this.state.voiceAllowed = event.voiceAllowed ?? this.state.voiceAllowed
 				break
 			case 'call':
 				this.state.call = event.call
@@ -745,6 +865,9 @@ export class RoomSession {
 				break
 			case 'focus':
 				this.setFocus(event.focus)
+				break
+			case 'music':
+				this.state.music = event.music
 				break
 			case 'closed':
 				this.end('closed')
@@ -760,6 +883,8 @@ export class RoomSession {
 		this.state.decor = snapshot.decor
 		this.state.props = snapshot.props
 		this.state.call = snapshot.call ?? null
+		this.state.music = snapshot.music ?? null
+		this.state.voiceAllowed = snapshot.voiceAllowed ?? false
 		this.state.configRev = snapshot.configRev
 		this.desksChanged(snapshot.desksRev)
 		if (JSON.stringify(snapshot.focus ?? null) !== JSON.stringify(this.state.focus)) {
@@ -832,6 +957,7 @@ export class RoomSession {
 				status: this.state.statuses[participant.uid] ?? null,
 				birthday: participant.birthday ?? false,
 				focusing: this.state.focus?.uids.includes(participant.uid) ?? false,
+				voice: participant.voice ?? null,
 			})
 		}
 		people.sort((a, b) => Number(b.isYou) - Number(a.isYou) || a.name.localeCompare(b.name))
@@ -852,6 +978,9 @@ export class RoomSession {
 
 	private interval(): number {
 		const pushed = this.state.pushActive && this.pushHealthy
+		if (this.fastPoll && !pushed) {
+			return POLL_INTERVAL.connecting
+		}
 		if (!this.visible) {
 			return pushed ? POLL_INTERVAL.hiddenPushed : POLL_INTERVAL.hidden
 		}
@@ -890,11 +1019,15 @@ export class RoomSession {
 						this.pushHealthy = false
 					}
 				}
-				if (result.catalogHash !== this.catalogHash) {
+				if (this.isOutdated(result)) {
 					this.end('outdated')
 					return
 				}
 				this.applySnapshot(result)
+			}
+			// After the snapshot, so voice knows who turned it on in the meantime.
+			if (result.signals?.length) {
+				this.onSignals?.(result.signals)
 			}
 			this.schedule()
 		} catch (error) {
@@ -958,7 +1091,9 @@ export class RoomSession {
 			this.state.rev = -1
 			this.state.desks = []
 			this.state.statuses = {}
+			this.state.times = {}
 			this.state.focus = null
+			this.state.music = null
 			this.desksRev = -1
 		}
 		if (status !== 'elsewhere') {

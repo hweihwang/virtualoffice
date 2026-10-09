@@ -4,18 +4,19 @@
 -->
 <script setup lang="ts">
 import type { Appearance } from '../../shared/catalog.ts'
-import type { KnockAnswer, KnockEvent } from '../api.ts'
+import type { KnockAnswer, KnockEvent, Signal } from '../api.ts'
 import type { Announcement, PersonView } from '../session/room.ts'
 import type { InitialConfig, OfficeDefinition, Preferences, TeamResource } from '../types.ts'
 
-import { mdiArrowLeft, mdiCog, mdiDoorOpen, mdiFormatListBulleted, mdiHeadset, mdiMap, mdiMessageText, mdiPhone, mdiShareVariant, mdiTshirtCrew } from '@mdi/js'
+import { mdiArrowLeft, mdiCog, mdiDoorOpen, mdiFormatListBulleted, mdiHeadset, mdiMap, mdiMessageText, mdiMicrophone, mdiMicrophoneOff, mdiPhone, mdiShareVariant, mdiTshirtCrew, mdiVolumeHigh } from '@mdi/js'
 import { getRequestToken } from '@nextcloud/auth'
 import axios from '@nextcloud/axios'
-import { n, t } from '@nextcloud/l10n'
+import { getCanonicalLocale, n, t } from '@nextcloud/l10n'
 import { listen } from '@nextcloud/notify_push'
 import { generateOcsUrl, generateUrl, imagePath } from '@nextcloud/router'
 import { useIsMobile } from '@nextcloud/vue/composables/useIsMobile'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch, watchEffect } from 'vue'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActionCheckbox from '@nextcloud/vue/components/NcActionCheckbox'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcButton from '@nextcloud/vue/components/NcButton'
@@ -29,13 +30,19 @@ import OfficeScene from '../components/OfficeScene.vue'
 import OfficeSettingsDialog from '../components/OfficeSettingsDialog.vue'
 import PeopleList from '../components/PeopleList.vue'
 import RouletteToggle from '../components/RouletteToggle.vue'
+import SoundDialog from '../components/SoundDialog.vue'
 import TodayNote from '../components/TodayNote.vue'
 import WatchToggle from '../components/WatchToggle.vue'
 import { catalog } from '../../shared/catalog.ts'
 import { api, ApiError } from '../api.ts'
 import { emoteLabel, errorMessage, knockAnswerLabel, modeLabel, pairLabel } from '../labels.ts'
+import { previewFile } from '../scene/map.ts'
 import { EMOTE_ICONS } from '../scene/renderer.ts'
+import { unlockAudio } from '../session/audio.ts'
+import { MusicPlayer } from '../session/music.ts'
 import { RoomSession } from '../session/room.ts'
+import { clockOf, deviceZone, isValidZone, localTime, sameOffset, sharedHours, zoneOf } from '../session/time.ts'
+import { talkIceServers, VoiceMesh } from '../session/voice.ts'
 import { postMessage } from '../talk.ts'
 
 const props = defineProps<{ config: InitialConfig }>()
@@ -49,6 +56,11 @@ const preferencesRevision = ref(0)
 const session = shallowRef<RoomSession | null>(null)
 const showAppearance = ref(false)
 const showSettings = ref(false)
+const showSound = ref(false)
+let music: MusicPlayer | null = null
+const voice = shallowRef<VoiceMesh | null>(null)
+/** Voice needs a secure page and a browser with WebRTC. */
+const voiceSupported = window.isSecureContext && typeof RTCPeerConnection !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia)
 const savingAppearance = ref(false)
 const feedback = ref('')
 const liveText = ref('')
@@ -75,6 +87,11 @@ const appearance = computed<Appearance>(() => preferences.value?.appearance ?? c
 const view = computed(() => preferences.value?.ui.view ?? (isMobile.value ? 'list' : 'scene'))
 const reducedEffects = computed(() => preferences.value?.ui.reducedEffects ?? false)
 const announcementsOn = computed(() => preferences.value?.ui.announcements ?? true)
+const musicVolume = computed(() => preferences.value?.ui.musicVolume ?? 50)
+const voiceMode = computed(() => preferences.value?.ui.voiceMode ?? 'push')
+const voiceVolume = computed(() => preferences.value?.ui.voiceVolume ?? 100)
+const voiceOn = computed(() => voice.value?.state.on ?? false)
+const voiceAllowed = computed(() => voiceSupported && (session.value?.state.voiceAllowed ?? props.config.voice))
 const you = computed<PersonView | undefined>(() => session.value?.state.people.find((p) => p.isYou))
 const talkUrl = computed(() => generateUrl('/apps/virtualoffice/o/{token}/talk', { token }))
 const people = computed(() => session.value?.state.people.length ?? 0)
@@ -88,6 +105,49 @@ const callNames = computed(() => (call.value?.participants ?? []).map((uid) => c
 const audienceText = computed(() => office.value?.audience.kind === 'talk'
 	? t('virtualoffice', 'Talk conversation {name}', { name: office.value.audience.label })
 	: office.value?.audience.label ?? '')
+/** Ticks once a minute for local times and shared hours. */
+const minute = ref(Date.now())
+let minuteTimer: ReturnType<typeof setInterval> | null = null
+const times = computed(() => session.value?.state.times ?? {})
+/** The viewer's own zone: their Nextcloud setting, else the device's. */
+const viewerZone = computed(() => zoneOf(times.value[props.config.uid ?? '']) ?? deviceZone())
+
+/** When everyone inside and every desk owner works today, in the viewer's zone. */
+const sharedText = computed(() => {
+	const current = session.value
+	if (!current) {
+		return ''
+	}
+	const uids = new Set([...current.state.people.map((p) => p.uid), ...current.state.desks.map((d) => d.uid)])
+	const ranges = sharedHours([...uids].map((uid) => times.value[uid]?.hours), viewerZone.value, minute.value)
+	if (ranges === null) {
+		return ''
+	}
+	if (ranges.length === 0) {
+		return t('virtualoffice', 'No shared hours today')
+	}
+	const time = (ms: number) => localTime(ms, viewerZone.value, getCanonicalLocale())
+	return t('virtualoffice', 'Shared hours today: {hours}', { hours: ranges.map(([from, until]) => `${time(from)}–${time(until)}`).join(', ') })
+})
+
+/** Points you to Personal settings when your time zone or working hours are not set as others see them. */
+const timeHint = computed<{ text: string, link: string } | null>(() => {
+	const own = times.value[props.config.uid ?? '']
+	if (!own) {
+		return null
+	}
+	if (!isValidZone(own.timeZone)) {
+		return { text: t('virtualoffice', 'Set your time zone so others see your local time.'), link: generateUrl('/settings/user') }
+	}
+	if (!sameOffset(own.timeZone, deviceZone(), minute.value)) {
+		return { text: t('virtualoffice', 'Your Nextcloud time zone is {zone}, but this device uses {device}.', { zone: own.timeZone, device: deviceZone() }), link: generateUrl('/settings/user') }
+	}
+	if (own.hours.default) {
+		return { text: t('virtualoffice', 'Set your working hours so others know when you are around.'), link: generateUrl('/settings/user/availability') }
+	}
+	return null
+})
+
 /** Compact buttons on desktop, full touch targets on phones. */
 const buttonSize = computed(() => isMobile.value ? 'normal' : 'small')
 
@@ -137,6 +197,10 @@ function announce(announcement: Announcement) {
 }
 
 async function knock(uid: string, name: string) {
+	const clock = clockOf(times.value[uid], Date.now(), getCanonicalLocale())
+	if (clock?.off && !window.confirm(t('virtualoffice', 'It is {time} for {name}, outside their working hours. Knock anyway?', { time: clock.time, name }))) {
+		return
+	}
 	try {
 		await api.knock(token, uid)
 		say(t('virtualoffice', 'You knocked. {name} gets a notification.', { name }))
@@ -169,6 +233,7 @@ async function answerKnock(answer: KnockAnswer) {
 	try {
 		const { link } = await api.answerKnock(knocked.id, answer)
 		if (link) {
+			beforeCall()
 			openLink(link)
 		}
 	} catch (e) {
@@ -272,28 +337,115 @@ async function load() {
 		}
 		preferences.value = prefs.preferences
 		preferencesRevision.value = prefs.revision
-		session.value = new RoomSession(
-			token,
-			props.config.uid ?? '',
-			api,
-			props.config.clientPush ? { listen: (handler) => listen('virtualoffice_room', (_type, body) => handler(body)) } : null,
-			__CATALOG_HASH__,
-			definition.layoutId,
-			announce,
-		)
+		session.value = createSession(definition.layoutId)
 	} catch (e) {
 		loadError.value = e instanceof ApiError ? e.code : 'UNKNOWN'
 	}
 }
 
+function createSession(layoutId: string): RoomSession {
+	return new RoomSession(
+		token,
+		props.config.uid ?? '',
+		api,
+		props.config.clientPush ? { listen: (handler) => listen('virtualoffice_room', (_type, body) => handler(body)) } : null,
+		__CATALOG_HASH__,
+		layoutId,
+		announce,
+	)
+}
+
+// A manager switched the layout from the door: enter the new map without a reload.
+watch(() => office.value?.layoutId, (layoutId, previous) => {
+	if (layoutId && previous && layoutId !== previous && session.value && !inRoom.value) {
+		session.value.dispose()
+		session.value = createSession(layoutId)
+	}
+})
+
 async function enter(takeover = false) {
+	// Browsers only let sound start from a click like this one.
+	unlockAudio()
 	await session.value?.enter(takeover)
+	startMusic()
 	if (inRoom.value && resources.value.length === 0) {
 		void loadResources()
 	}
 	if (inRoom.value && view.value === 'scene') {
 		setTimeout(() => scene.value?.focus(), 50)
 	}
+}
+
+/** Plays the office's music while you are inside, louder the closer you are to the player. */
+function startMusic() {
+	const current = session.value
+	const player = current?.layoutData.player
+	if (!current || !player || music || !inRoom.value) {
+		return
+	}
+	music = new MusicPlayer(() => {
+		const position = current.isActive ? current.ownPosition() : null
+		return {
+			music: current.isActive ? current.state.music : null,
+			now: current.clock.serverNow(),
+			distance: position ? Math.hypot(position[0] - player.cell[0], position[1] - player.cell[1]) : null,
+			volume: musicVolume.value,
+		}
+	}, (index, startedAt) => generateUrl('/apps/virtualoffice/o/{token}/music/{index}', { token, index }) + `?v=${startedAt}`, player)
+}
+
+function stopMusic() {
+	music?.dispose()
+	music = null
+}
+
+/** Turns voice on in this click, so the browser may ask for the microphone. */
+async function startVoice() {
+	const current = session.value
+	if (!current || !inRoom.value) {
+		return
+	}
+	voice.value ??= new VoiceMesh(current, { iceServers: talkIceServers, volume: () => voiceVolume.value, mode: () => voiceMode.value })
+	await voice.value.start()
+	if (voice.value.state.error) {
+		say(voice.value.state.error === 'denied'
+			? t('virtualoffice', 'The browser blocked the microphone. Allow it in the address bar to use voice.')
+			: t('virtualoffice', 'The microphone could not be opened.'))
+	}
+}
+
+async function stopVoice() {
+	await voice.value?.stop()
+}
+
+/** Talk gets the microphone back for calls. */
+function beforeCall() {
+	void stopVoice()
+}
+
+/** Voice signals from Client Push; every tab of yours gets them, "to" says which one. */
+function onSignal(body: Signal & { office: string }) {
+	if (body.office === token) {
+		voice.value?.receive(body)
+	}
+}
+
+/** V held: talk. M: mute or unmute an open mic. Not while typing. */
+function onVoiceKey(event: KeyboardEvent) {
+	const target = event.target as HTMLElement | null
+	if (!voice.value?.state.on || event.metaKey || event.ctrlKey || event.altKey || target?.closest('input, textarea, select, [contenteditable="true"]')) {
+		return
+	}
+	const key = event.key.toLowerCase()
+	if (key === 'v' && voiceMode.value === 'push' && !event.repeat) {
+		voice.value.setTalking(event.type === 'keydown')
+	} else if (key === 'm' && voiceMode.value === 'open' && event.type === 'keydown' && !event.repeat) {
+		voice.value.toggleMute()
+	}
+}
+
+function onBlurWindow() {
+	voice.value?.setTalking(false)
 }
 
 async function leave() {
@@ -308,6 +460,9 @@ async function refreshOffice() {
 
 /** Opens the conversation, or joins its call, through the access-checked redirect. */
 function openTalk(join = false) {
+	if (join) {
+		beforeCall()
+	}
 	openLink(talkUrl.value + (join ? '#direct-call' : ''))
 }
 
@@ -319,6 +474,9 @@ function currentPreferences(stored: Preferences | null = preferences.value): Pre
 			view: stored?.ui.view ?? (isMobile.value ? 'list' : 'scene'),
 			reducedEffects: stored?.ui.reducedEffects ?? false,
 			announcements: stored?.ui.announcements ?? true,
+			musicVolume: stored?.ui.musicVolume ?? 50,
+			voiceMode: stored?.ui.voiceMode ?? 'push',
+			voiceVolume: stored?.ui.voiceVolume ?? 100,
 		},
 	}
 }
@@ -436,6 +594,21 @@ watch(status, (next, previous) => {
 	if ((previous === 'active' || previous === 'reconnecting') && !inRoom.value && next !== 'left') {
 		void refreshOffice()
 	}
+	if (!inRoom.value) {
+		stopMusic()
+		voice.value?.dispose()
+		voice.value = null
+	}
+})
+
+// The microphone follows the mode right away.
+watch(voiceMode, () => voice.value?.setTalking(false))
+
+// An admin turned voice off for everyone.
+watch(voiceAllowed, (allowed) => {
+	if (!allowed) {
+		void stopVoice()
+	}
 })
 
 /** Keeps "n people here" current while you look at the door. */
@@ -458,9 +631,16 @@ watch(() => session.value?.state.title, (title) => {
 onMounted(() => {
 	load()
 	countTimer = setInterval(refreshCount, 30_000)
+	minuteTimer = setInterval(() => {
+		minute.value = Date.now()
+	}, 60_000)
 	if (props.config.clientPush) {
 		listen('virtualoffice_knock', (_type, body) => onKnockEvent(body as KnockEvent))
+		listen('virtualoffice_signal', (_type, body) => onSignal(body as Signal & { office: string }))
 	}
+	window.addEventListener('keydown', onVoiceKey)
+	window.addEventListener('keyup', onVoiceKey)
+	window.addEventListener('blur', onBlurWindow)
 	window.addEventListener('pagehide', onPageHide)
 	document.addEventListener('visibilitychange', onVisibility)
 })
@@ -472,8 +652,16 @@ onBeforeUnmount(() => {
 	if (countTimer !== null) {
 		clearInterval(countTimer)
 	}
+	if (minuteTimer !== null) {
+		clearInterval(minuteTimer)
+	}
 	window.removeEventListener('pagehide', onPageHide)
 	document.removeEventListener('visibilitychange', onVisibility)
+	stopMusic()
+	voice.value?.dispose()
+	window.removeEventListener('keydown', onVoiceKey)
+	window.removeEventListener('keyup', onVoiceKey)
+	window.removeEventListener('blur', onBlurWindow)
 	session.value?.dispose()
 })
 </script>
@@ -505,7 +693,7 @@ onBeforeUnmount(() => {
 				</a>
 				<div class="landing__card">
 					<div class="landing__art">
-						<img class="landing__preview" :src="imagePath('virtualoffice', 'office-preview.webp')" alt="">
+						<img class="landing__preview" :src="imagePath('virtualoffice', previewFile(office.layoutId))" alt="">
 						<span class="landing__character"><CreaturePreview :appearance="appearance" :size="56" /></span>
 					</div>
 					<div class="landing__text">
@@ -598,7 +786,7 @@ onBeforeUnmount(() => {
 					<div class="room__title">
 						<h2>{{ session.state.title || office.title }}</h2>
 						<span class="room__meta">
-							{{ audienceText }} · {{ n('virtualoffice', '%n of {capacity} here', '%n of {capacity} here', people, { capacity: session.state.capacity }) }}
+							{{ audienceText }} · {{ n('virtualoffice', '%n of {capacity} here', '%n of {capacity} here', people, { capacity: session.state.capacity }) }}<template v-if="sharedText"> · <span class="room__shared">{{ sharedText }}</span></template>
 						</span>
 					</div>
 					<div class="room__header-actions">
@@ -642,6 +830,12 @@ onBeforeUnmount(() => {
 							<NcActionCheckbox :modelValue="announcementsOn" @update:modelValue="(value) => setUi({ announcements: value })">
 								{{ t('virtualoffice', 'Announce arrivals for screen readers') }}
 							</NcActionCheckbox>
+							<NcActionButton closeAfterClick @click="showSound = true">
+								<template #icon>
+									<NcIconSvgWrapper :path="mdiVolumeHigh" />
+								</template>
+								{{ t('virtualoffice', 'Sound…') }}
+							</NcActionButton>
 						</NcActions>
 						<NcButton
 							v-if="office.permissions.canManage"
@@ -681,6 +875,7 @@ onBeforeUnmount(() => {
 							ref="scene"
 							:session="session"
 							:reducedEffects="reducedEffects"
+							:speaking="voice?.state.speaking ?? []"
 							@blocked="say(t('virtualoffice', 'You cannot walk there.'))" />
 					</div>
 
@@ -693,6 +888,9 @@ onBeforeUnmount(() => {
 								</NcButton>
 							</div>
 							<TodayNote @feedback="say" />
+							<p v-if="timeHint" class="controls__hint">
+								{{ timeHint.text }} <a :href="timeHint.link" target="_blank" rel="noopener">{{ t('virtualoffice', 'Personal settings') }}</a>
+							</p>
 							<div class="controls__group" role="group" :aria-label="t('virtualoffice', 'Your status in the office')">
 								<NcButton
 									v-for="mode in catalog.modes"
@@ -701,6 +899,58 @@ onBeforeUnmount(() => {
 									:pressed="you?.mode === mode"
 									@update:pressed="session.setMode(mode)">
 									{{ modeLabel(mode) }}
+								</NcButton>
+							</div>
+							<div
+								v-if="voiceAllowed"
+								class="controls__group controls__voice"
+								role="group"
+								:aria-label="t('virtualoffice', 'Voice')">
+								<template v-if="voiceOn && voice">
+									<NcButton
+										v-if="voiceMode === 'push'"
+										:size="buttonSize"
+										:pressed="voice.state.talking"
+										class="controls__talk"
+										@pointerdown="voice.setTalking(true)"
+										@pointerup="voice.setTalking(false)"
+										@pointerleave="voice.setTalking(false)"
+										@pointercancel="voice.setTalking(false)"
+										@keydown.space.prevent="voice.setTalking(true)"
+										@keyup.space.prevent="voice.setTalking(false)">
+										<template #icon>
+											<NcIconSvgWrapper :path="mdiMicrophone" />
+										</template>
+										{{ voice.state.talking ? t('virtualoffice', 'Talking…') : t('virtualoffice', 'Hold to talk (V)') }}
+									</NcButton>
+									<NcButton
+										v-else
+										:size="buttonSize"
+										:pressed="voice.state.muted"
+										@update:pressed="voice.toggleMute()">
+										<template #icon>
+											<NcIconSvgWrapper :path="voice.state.muted ? mdiMicrophoneOff : mdiMicrophone" />
+										</template>
+										{{ voice.state.muted ? t('virtualoffice', 'Unmute (M)') : t('virtualoffice', 'Mute (M)') }}
+									</NcButton>
+									<NcButton :size="buttonSize" variant="tertiary" @click="stopVoice">
+										{{ t('virtualoffice', 'Turn off voice') }}
+									</NcButton>
+									<p class="controls__hint" role="status">
+										{{ voice.state.connected.length
+											? n('virtualoffice', 'You can hear %n person nearby', 'You can hear %n people nearby', voice.state.connected.length)
+											: t('virtualoffice', 'Walk up to people with a microphone to talk. Focus desks stay quiet.') }}
+									</p>
+								</template>
+								<NcButton
+									v-else
+									:size="buttonSize"
+									:disabled="voice?.state.starting"
+									@click="startVoice">
+									<template #icon>
+										<NcIconSvgWrapper :path="mdiMicrophone" />
+									</template>
+									{{ t('virtualoffice', 'Turn on voice') }}
 								</NcButton>
 							</div>
 							<div class="controls__group" role="group" :aria-label="t('virtualoffice', 'Reactions')">
@@ -725,6 +975,7 @@ onBeforeUnmount(() => {
 							@walkTo="walkTo"
 							@remove="removePerson"
 							@knock="knock"
+							@call="beforeCall"
 							@feedback="say" />
 					</aside>
 				</div>
@@ -751,7 +1002,7 @@ onBeforeUnmount(() => {
 			<div v-else-if="knockAnswer" class="office__knock" role="status">
 				<span>{{ knockAnswerLabel(knockAnswer.answer, knockAnswer.name) }}</span>
 				<div class="office__knock-actions">
-					<NcButton v-if="knockAnswer.link" variant="primary" @click="openLink(knockAnswer.link); knockAnswer = null">
+					<NcButton v-if="knockAnswer.link" variant="primary" @click="beforeCall(); openLink(knockAnswer.link); knockAnswer = null">
 						{{ t('virtualoffice', 'Call') }}
 					</NcButton>
 					<NcButton variant="tertiary" @click="knockAnswer = null">
@@ -773,6 +1024,12 @@ onBeforeUnmount(() => {
 				:saving="savingAppearance"
 				@close="showAppearance = false"
 				@save="saveAppearance" />
+			<SoundDialog
+				v-if="showSound"
+				:preferences="currentPreferences()"
+				:voiceAllowed="voiceAllowed"
+				@change="(change) => setUi(change)"
+				@close="showSound = false" />
 			<OfficeSettingsDialog
 				v-if="showSettings"
 				:office="office"
@@ -966,6 +1223,29 @@ onBeforeUnmount(() => {
 	padding: 12px;
 	border-radius: var(--border-radius-container-large, 16px);
 	background: var(--color-background-hover);
+}
+
+.controls__voice .controls__hint {
+	flex-basis: 100%;
+}
+
+.controls__talk {
+	touch-action: none;
+	user-select: none;
+}
+
+.controls__hint {
+	margin: 0;
+	color: var(--color-text-maxcontrast);
+	font-size: .9em;
+}
+
+.controls__hint a {
+	text-decoration: underline;
+}
+
+.room__shared {
+	white-space: nowrap;
 }
 
 .controls__you, .controls__group {

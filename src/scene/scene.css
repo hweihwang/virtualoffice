@@ -410,6 +410,35 @@
 	display: inline-block;
 }
 
+.vo-voice-badge {
+	display: none;
+	flex: none;
+	width: 13px;
+	height: 13px;
+	color: #0082c9;
+}
+
+.vo-voice-badge svg {
+	width: 13px;
+	height: 13px;
+	fill: currentColor;
+}
+
+.vo-voice .vo-voice-badge {
+	display: inline-block;
+}
+
+/* A soft ring on the floor while someone's voice is heard. */
+.vo-speaking .vo-shadow {
+	box-shadow: 0 0 0 3px #0082c9aa;
+	animation: vo-speak 900ms ease-in-out infinite alternate;
+}
+
+@keyframes vo-speak {
+	from { box-shadow: 0 0 0 2px #0082c966; }
+	to { box-shadow: 0 0 0 5px #0082c9cc; }
+}
+
 .vo-mode {
 	flex: none;
 	width: 8px;
@@ -600,6 +629,39 @@
 	50% { transform: rotate(4deg); }
 }
 
+.vo-player-fx i {
+	position: absolute;
+	bottom: 22px;
+	left: 14px;
+	color: #0082c9;
+	font-size: 17px;
+	font-style: normal;
+	font-weight: 700;
+	opacity: 0;
+	text-shadow: 0 1px 0 #fff, 0 0 3px #fff;
+}
+
+.vo-player-fx.vo-active i { animation: vo-note 2.4s ease-out infinite; }
+.vo-player-fx.vo-active i:nth-child(2) { left: 24px; animation-delay: .8s; }
+.vo-player-fx.vo-active i:nth-child(3) { left: 4px; animation-delay: 1.6s; }
+
+@keyframes vo-note {
+	0% { opacity: 0; transform: translate(0, 0) rotate(-10deg); }
+	20% { opacity: 1; }
+	100% { opacity: 0; transform: translate(10px, -36px) rotate(14deg); }
+}
+
+/* The grooves move while the record turns. */
+.vo-scene:has(.vo-player-fx.vo-active) .vo-record ellipse:nth-child(2) {
+	stroke: #a8e4f9;
+	stroke-dasharray: 5 3;
+	animation: vo-turn 1.2s linear infinite;
+}
+
+@keyframes vo-turn {
+	to { stroke-dashoffset: -16; }
+}
+
 .vo-bulb {
 	animation: vo-glow 3s ease-in-out infinite alternate;
 }
@@ -620,8 +682,16 @@
 .vo-reduced .vo-clink-cups svg,
 .vo-reduced .vo-sleep,
 .vo-reduced .vo-balloon,
-.vo-reduced .vo-leaves {
+.vo-reduced .vo-leaves,
+.vo-reduced .vo-speaking .vo-shadow,
+.vo-reduced .vo-player-fx i,
+.vo-reduced .vo-record ellipse {
 	animation: none !important;
+}
+
+/* Without motion, one still note says the music is on. */
+.vo-reduced .vo-player-fx.vo-active i:first-child {
+	opacity: 1;
 }
 
 .vo-reduced .vo-emote {
@@ -629,7 +699,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.vo-creature .vo-body, .vo-foot, .vo-bulb, .vo-emote svg, .vo-pair, .vo-pair svg, .vo-clink-cups svg, .vo-sleep, .vo-balloon, .vo-leaves {
+	.vo-creature .vo-body, .vo-foot, .vo-bulb, .vo-emote svg, .vo-pair, .vo-pair svg, .vo-clink-cups svg, .vo-sleep, .vo-balloon, .vo-leaves, .vo-player-fx i, .vo-record ellipse, .vo-speaking .vo-shadow {
 		animation: none !important;
+	}
+
+	.vo-player-fx.vo-active i:first-child {
+		opacity: 1;
 	}
 }

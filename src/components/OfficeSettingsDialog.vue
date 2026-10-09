@@ -15,7 +15,7 @@ import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import { catalog } from '../../shared/catalog.ts'
 import { api, ApiError } from '../api.ts'
-import { decorLabel, errorMessage } from '../labels.ts'
+import { decorLabel, errorMessage, layoutLabel } from '../labels.ts'
 
 const props = defineProps<{ office: OfficeDefinition }>()
 const emit = defineEmits<{ close: [], updated: [office: OfficeDefinition], deleted: [] }>()
@@ -23,6 +23,7 @@ const emit = defineEmits<{ close: [], updated: [office: OfficeDefinition], delet
 const current = ref<OfficeDefinition>(props.office)
 const title = ref(props.office.title)
 const decor = ref<Record<string, string>>({ ...props.office.config.decor })
+const layoutId = ref(props.office.layoutId)
 const talkSource = ref<'none' | 'team' | 'link' | 'conversation'>(props.office.config.talk?.source ?? 'none')
 const teamConversations = ref<{ token: string, label: string }[]>([])
 const teamConversation = ref<{ token: string, label: string } | null>(null)
@@ -60,8 +61,8 @@ async function save() {
 	}
 	try {
 		current.value = await api.updateOffice(current.value.token, current.value.revision, isConversation.value
-			? { decor: decor.value }
-			: { title: title.value, decor: decor.value, talk })
+			? { decor: decor.value, layoutId: layoutId.value }
+			: { title: title.value, decor: decor.value, talk, layoutId: layoutId.value })
 		emit('updated', current.value)
 		emit('close')
 	} catch (e) {
@@ -152,6 +153,21 @@ onMounted(async () => {
 				v-model="title"
 				:label="t('virtualoffice', 'Office name')"
 				:maxlength="120" />
+
+			<fieldset>
+				<legend>{{ t('virtualoffice', 'Layout') }}</legend>
+				<div class="settings__decor settings__layout">
+					<label>
+						<span class="hidden-visually">{{ t('virtualoffice', 'Layout') }}</span>
+						<select v-model="layoutId">
+							<option v-for="(_layout, id) in catalog.layouts" :key="id" :value="id">{{ layoutLabel(id) }}</option>
+						</select>
+					</label>
+				</div>
+				<p class="settings__hint">
+					{{ t('virtualoffice', 'The layout can change while nobody is inside. Desks that the new layout does not have are freed.') }}
+				</p>
+			</fieldset>
 
 			<fieldset>
 				<legend>{{ t('virtualoffice', 'Decor') }}</legend>
@@ -299,6 +315,10 @@ fieldset legend, .settings__section h3 {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+}
+
+.settings__layout label {
+	grid-column: 1 / -1;
 }
 
 .settings__decor select {

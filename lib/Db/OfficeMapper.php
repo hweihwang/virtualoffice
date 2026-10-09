@@ -177,6 +177,7 @@ class OfficeMapper extends QBMapper {
 		$qb = $this->db->getQueryBuilder();
 		$qb->update($this->getTableName())
 			->set('title', $qb->createNamedParameter($office->getTitle()))
+			->set('layout_id', $qb->createNamedParameter($office->getLayoutId()))
 			->set('config', $qb->createNamedParameter($office->getConfig()))
 			->set('managers', $qb->createNamedParameter($office->getManagers()))
 			->set('removals', $qb->createNamedParameter($office->getRemovals()))

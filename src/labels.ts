@@ -97,6 +97,14 @@ export function accessoryLabel(id: string): string {
 	} as Record<string, string>)[id] ?? id
 }
 
+/** A layout with how many people and desks it holds. */
+export function layoutLabel(id: string): string {
+	return ({
+		'starter-office-v1': t('virtualoffice', 'Large · up to 32 people, 12 desks'),
+		'compact-office-v1': t('virtualoffice', 'Small · up to 12 people, 6 desks'),
+	} as Record<string, string>)[id] ?? id
+}
+
 export function decorLabel(slot: string, value?: string): string {
 	if (value === undefined) {
 		return ({
@@ -104,6 +112,7 @@ export function decorLabel(slot: string, value?: string): string {
 			rug: t('virtualoffice', 'Rug'),
 			wallArt: t('virtualoffice', 'Wall art'),
 			lights: t('virtualoffice', 'Lights'),
+			season: t('virtualoffice', 'Season'),
 		} as Record<string, string>)[slot] ?? slot
 	}
 	return ({
@@ -119,6 +128,9 @@ export function decorLabel(slot: string, value?: string): string {
 		cat: t('virtualoffice', 'Cat poster'),
 		abstract: t('virtualoffice', 'Shapes'),
 		warm: t('virtualoffice', 'String lights'),
+		autumn: t('virtualoffice', 'Autumn'),
+		winter: t('virtualoffice', 'Winter'),
+		lunar: t('virtualoffice', 'Lunar New Year'),
 	} as Record<string, string>)[value] ?? value
 }
 

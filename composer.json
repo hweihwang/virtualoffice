@@ -12,6 +12,7 @@
 		"nextcloud/ocp": "35.0.0",
 		"phpunit/phpunit": "12.5.35",
 		"psalm/phar": "6.18.0",
+		"sabre/vobject": "4.5.6",
 		"symfony/console": "^7.4"
 	},
 	"autoload": {

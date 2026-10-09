@@ -249,7 +249,7 @@ part('<div class="t-msg">Anyone free for a quick question about the launch?<div 
 part(`<div class="t-own" style="position:absolute;inset:0"><div class="t-text">Come by the office: <span class="t-link">cloud.example.com/apps/virtualoffice/o/2ed0c4b6</span></div></div>`, -60, -300, 34.5, 'part', 1400, 1300)
 part('<div class="t-face" style="background:#ece6f7;color:#6a55a8">A</div>', 1364, -300, 35.45)
 part('', -30, -200, 34.6, 'part t-card', 1340, 1130)
-part(`<div class="t-card-head"><div class="t-thumb">${mapSvg(layout, decor).replace('<svg ', '<svg preserveAspectRatio="xMidYMid slice" ')}</div><div><div class="t-card-title">The Studio</div><div class="t-card-meta">Studio team · 6 here</div><div class="t-card-open">Open office</div></div></div>`, 0, -178, 35.6)
+part(`<div class="t-card-head"><div class="t-thumb">${mapSvg(catalog.defaultLayout, decor).replace('<svg ', '<svg preserveAspectRatio="xMidYMid slice" ')}</div><div><div class="t-card-title">The Studio</div><div class="t-card-meta">Studio team · 6 here</div><div class="t-card-open">Open office</div></div></div>`, 0, -178, 35.6)
 part(`<div class="t-row">${(['wave', 'heart', 'laugh', 'celebrate'] as const).map((e) => `<div class="t-react">${icon(EMOTE_ICON[e], '#222')}</div>`).join('')}<div class="grow"></div><div class="t-here">6 here</div><div class="t-btn">Open full office</div><div class="t-btn">Leave</div></div>`, 0, 830, 35.8, 'part', 1280)
 part(`<div class="t-time" style="display:flex;gap:8px;align-items:center;justify-content:flex-end">10:25 ${icon(mdiCheckAll, '#7a7a7a').replace('<svg ', '<svg style="width:28px;height:28px" ')}</div>`, 1100, 950, 35.9, 'part', 210)
 part(`<div class="t-composer">${icon(mdiPlus, '#222', 't-icon')}<div class="t-input">${icon(mdiEmoticonOutline, '#8b8b8b', 't-icon')}Write a message …</div>${icon(mdiDotsHorizontal, '#222', 't-icon')}${icon(mdiMicrophone, '#222', 't-icon')}</div>`, -330, 1060, 36.0, 'part', 1760)
@@ -261,7 +261,7 @@ const stageWrap = add(world, el('div')) as HTMLDivElement
 stageWrap.id = 'stage-wrap'
 const stage = add(stageWrap, el('div')) as HTMLDivElement
 stage.id = 'stage'
-const map = add(stage, el('div', '', mapSvg(layout, decor)))
+const map = add(stage, el('div', '', mapSvg(catalog.defaultLayout, decor)))
 map.id = 'map'
 const bulbs = [...map.querySelectorAll<SVGCircleElement>('.vo-bulb')]
 const leaves = map.querySelector<SVGGElement>('.vo-shared-plant .vo-leaves')!

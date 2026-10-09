@@ -22,6 +22,7 @@ use OCA\VirtualOffice\Service\DeskService;
 use OCA\VirtualOffice\Service\PreferenceService;
 use OCA\VirtualOffice\Service\RoomService;
 use OCA\VirtualOffice\Service\StatusService;
+use OCA\VirtualOffice\Service\TimeService;
 use OCP\IDBConnection;
 use OCP\IUser;
 use OCP\IUserManager;
@@ -56,7 +57,7 @@ class DeskServiceTest extends TestCase {
 			$this->users[$uid] = $user;
 		}
 		$this->service = new DeskService($this->createStub(IDBConnection::class), $this->desks, $this->createStub(PresenceMapper::class), $this->policy,
-			$userManager, $this->createStub(PreferenceService::class), $this->createStub(StatusService::class), $this->room, new Catalog(), $clock, $this->createStub(BirthdayService::class));
+			$userManager, $this->createStub(PreferenceService::class), $this->createStub(StatusService::class), $this->room, new Catalog(), $clock, $this->createStub(BirthdayService::class), $this->createStub(TimeService::class));
 		$this->office = new Office();
 		$this->office->setId(7);
 		$this->office->setLayoutId('starter-office-v1');

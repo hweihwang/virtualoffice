@@ -19,23 +19,27 @@ Open a conversation's office from any message menu and use it right in the chat.
 **Small moments, without a meeting**
 
 - Knock on someone; they answer Now, In 10 minutes or Later
+- Turn on your microphone and talk to people standing close by, louder the closer they are; push to talk or an open mic, and quiet Focus desks
+- Play music from your own Files on the shared record player; everyone hears the same moment, softer farther away
+- See each person's local time and working hours, and the hours everyone shares today
 - Claim a desk that shows your status and a note for the day while you are out
 - Focus together in 25 or 50 minute sessions
 - Sign up for a weekly coffee roulette in group offices
 - See who is in your offices on the Dashboard, and find offices in search, the Smart Picker and on Team pages
 - Pick a rabbit, cat, bear or bird, then a color and an accessory
+- A large office or a small one for up to 12 people, with autumn, winter and Lunar New Year decor
 - Use the map with a mouse, touch or the keyboard, or the people and places list with a screen reader
 
 **Privacy**
 
-Opening an office never makes you visible: you choose Enter office. Only members of the Team, group or conversation can enter. Virtual Office keeps no history of visits or movement.
+Opening an office never makes you visible: you choose Enter office. Only members of the Team, group or conversation can enter. Virtual Office keeps no history of visits or movement. Voice goes directly between browsers and is never recorded.
 
 **Requirements**
 
-Nextcloud 35, with no extra server. Talk adds conversation offices and calls (tested with Talk 25). Teams adds Team offices, Deck shows due cards on Team boards, and Client Push makes movement instant. Group offices work without other apps.
+Nextcloud 35, with no extra server. Talk adds conversation offices and calls (tested with Talk 25), and its STUN and TURN servers carry voice. Teams adds Team offices, Deck shows due cards on Team boards, and Client Push makes movement instant. Group offices work without other apps. Voice needs HTTPS.
 
 See the office in motion at https://hweihwang.com/virtualoffice/]]></description>
-	<version>1.0.0</version>
+	<version>1.1.0</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author>Hoang Pham</author>
 	<namespace>VirtualOffice</namespace>
@@ -50,6 +54,7 @@ See the office in motion at https://hweihwang.com/virtualoffice/]]></description
 	<bugs>https://github.com/hweihwang/virtualoffice/issues</bugs>
 	<repository>https://github.com/hweihwang/virtualoffice</repository>
 <screenshot>https://raw.githubusercontent.com/hweihwang/virtualoffice/main/docs/screenshots/office.png</screenshot>
+	<screenshot>https://raw.githubusercontent.com/hweihwang/virtualoffice/main/docs/screenshots/small-office.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/hweihwang/virtualoffice/main/docs/screenshots/talk.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/hweihwang/virtualoffice/main/docs/screenshots/character.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/hweihwang/virtualoffice/main/docs/screenshots/office-dark.png</screenshot>

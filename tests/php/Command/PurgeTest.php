@@ -43,7 +43,7 @@ class PurgeTest extends TestCase {
 
 		$tester = new CommandTester(new Purge($db, $appConfig, $userConfig, $notifications));
 		$this->assertSame(0, $tester->execute(['--force' => true]));
-		$this->assertSame(['vo_knocks', 'vo_watches', 'vo_roulette', 'vo_desks', 'vo_presence', 'vo_offices'], $deleted);
+		$this->assertSame(['vo_signals', 'vo_knocks', 'vo_watches', 'vo_roulette', 'vo_desks', 'vo_presence', 'vo_offices'], $deleted);
 	}
 
 	public function testRequiresExplicitConfirmation(): void {

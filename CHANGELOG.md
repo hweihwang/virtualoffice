@@ -4,6 +4,31 @@
 -->
 # Changelog
 
+## 1.1.0
+
+Offices
+
+- A small office for small teams: up to 12 people, 6 desks, the coffee corner, a sofa and room for 4 Team resources. Choose Large or Small when you create an office, and switch in the settings while nobody is inside; desks the new layout does not have are freed
+- Seasonal decor: autumn, winter or Lunar New Year, chosen in the office settings
+
+Together
+
+- A shared music player next to the sofa. Play up to 10 audio files from your own Nextcloud Files; everyone inside hears the same moment, louder the closer they stand, and nothing at the desks. The music stops when the person who started it leaves. Adjust or turn off the music under More › Sound
+- Proximity voice: turn on your microphone and talk to people standing close by, louder the closer they are and from the side they stand on. Push to talk with V by default, or an open mic you mute with M. The Focus desks stay quiet. Audio goes directly between browsers, or through Talk's TURN server, and is never recorded
+- Time zones: the people list and desks show each person's local time, with a moon outside their working hours from Personal settings › Availability. The office header shows the hours everyone works today, and knocking on someone outside their hours asks first
+- Weekly coffee roulette pairs people who share the most working hours in the coming week
+- A birthday balloon shows on the person's own date in their time zone
+
+Administration and privacy
+
+- Admin setting "Allow voice", on by default. Voice uses the STUN and TURN servers configured in Talk and needs HTTPS
+- Music files are streamed only to people inside the office, only while the person who started them is inside, and never from shares without download permission
+- Starting or joining a Talk call from the office turns voice off, so Talk gets the microphone
+
+Fixes
+
+- Coming back after your visit timed out, for example from a background tab, puts you inside again instead of leaving you invisible
+
 ## 1.0.0
 
 First release.

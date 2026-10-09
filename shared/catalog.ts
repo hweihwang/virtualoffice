@@ -2,13 +2,15 @@
  * SPDX-FileCopyrightText: 2026 Hoang Pham
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import rawCatalog from '../catalog/catalog.json'
+import rawCatalog from '../catalog/catalog.json' with { type: 'json' }
 
 export type Cell = [number, number]
 
 export interface Zone {
 	id: string
 	rect: [number, number, number, number]
+	/** No voice here, like a library. */
+	quiet?: boolean
 }
 
 export interface Prop {
@@ -24,6 +26,8 @@ export interface Layout {
 	height: number
 	tileSize: number
 	collision: string[]
+	/** Most people inside at once; the admin setting can lower it further. */
+	capacity: number
 	spawn: Cell[]
 	zones: Zone[]
 	zoneAnchors: Record<string, Cell>
@@ -32,6 +36,8 @@ export interface Layout {
 	desks?: { id: string, cell: Cell }[]
 	/** Wall spots for the Team's shared resources. */
 	fixtures?: { id: string, cell: Cell }[]
+	/** The shared music player: full volume within radius, silent from hearing on. */
+	player?: { cell: Cell, zone: string, radius: number, hearing: number }
 }
 
 export interface Palette {

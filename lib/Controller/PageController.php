@@ -126,6 +126,7 @@ class PageController extends Controller {
 			'catalogHash' => $this->catalog->hash(),
 			'roomCapacity' => $this->settings->roomCapacity(),
 			'instanceOffices' => $this->settings->instanceOfficesEnabled(),
+			'voice' => $this->settings->voiceEnabled(),
 		]);
 		return new TemplateResponse(Application::APP_ID, 'main');
 	}

@@ -36,12 +36,22 @@ class Settings {
 		$this->appConfig->setValueBool(Application::APP_ID, 'instance_offices', $enabled);
 	}
 
-	/** @return array{roomCapacity: int, maxRoomCapacity: int, instanceOffices: bool} */
+	/** Voice between people standing close to each other. On by default. */
+	public function voiceEnabled(): bool {
+		return $this->appConfig->getValueBool(Application::APP_ID, 'voice', true);
+	}
+
+	public function setVoiceEnabled(bool $enabled): void {
+		$this->appConfig->setValueBool(Application::APP_ID, 'voice', $enabled);
+	}
+
+	/** @return array{roomCapacity: int, maxRoomCapacity: int, instanceOffices: bool, voice: bool} */
 	public function toArray(): array {
 		return [
 			'roomCapacity' => $this->roomCapacity(),
 			'maxRoomCapacity' => $this->catalog->maxCapacity(),
 			'instanceOffices' => $this->instanceOfficesEnabled(),
+			'voice' => $this->voiceEnabled(),
 		];
 	}
 }

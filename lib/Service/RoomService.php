@@ -15,11 +15,14 @@ use OCA\VirtualOffice\Db\OfficeMapper;
 use OCA\VirtualOffice\Db\Presence;
 use OCA\VirtualOffice\Db\PresenceMapper;
 use OCA\VirtualOffice\Db\RouletteMapper;
+use OCA\VirtualOffice\Db\Signal;
+use OCA\VirtualOffice\Db\SignalMapper;
 use OCA\VirtualOffice\Exception\ApiException;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\TTransactional;
 use OCP\AppFramework\Http;
 use OCP\DB\Exception as DBException;
+use OCP\Files\File;
 use OCP\IDBConnection;
 use OCP\IUser;
 use OCP\IUserManager;
@@ -42,6 +45,15 @@ class RoomService {
 	public const AUTHORIZATION_MS = 20_000;
 	public const EMOTE_COOLDOWN_MS = 1_000;
 	public const FOCUS_MINUTES = [25, 50];
+	/** WebRTC offers, answers and goodbyes; candidates travel inside the SDP. */
+	public const SIGNAL_TYPES = ['offer', 'answer', 'bye'];
+	public const SIGNAL_MAX_BYTES = 16_384;
+	/** Signals nobody picked up are deleted after this time. */
+	public const SIGNAL_TTL_MS = 30_000;
+	public const MUSIC_MAX_TRACKS = 10;
+	/** Track lengths the playing browser reports, kept between 1 second and 30 minutes. */
+	public const MUSIC_MIN_MS = 1_000;
+	public const MUSIC_MAX_MS = 1_800_000;
 	private const SESSION_PATTERN = '/^[a-f0-9]{32}$/';
 
 	/** @var array<int, array{token: string, events: list<array>, extra: list<string>}> */
@@ -57,6 +69,7 @@ class RoomService {
 		private PresenceMapper $presenceMapper,
 		private DeskMapper $deskMapper,
 		private RouletteMapper $rouletteMapper,
+		private SignalMapper $signalMapper,
 		private AccessPolicy $accessPolicy,
 		private Catalog $catalog,
 		private Movement $movement,
@@ -65,6 +78,7 @@ class RoomService {
 		private Settings $settings,
 		private WatchService $watches,
 		private BirthdayService $birthdays,
+		private MusicLibrary $music,
 		private IUserManager $userManager,
 		private ITeamManager $teamManager,
 		private Clock $clock,
@@ -116,6 +130,10 @@ class RoomService {
 	private function doEnter(IUser $user, Office $office, ?Presence $row, string $session, bool $takeover): \Closure {
 		$now = $this->clock->nowMs();
 		$this->removeExpired($office, $now);
+		if ($row !== null && $row->getOfficeId() === $office->getId() && $row->getLeaseUntil() < $now) {
+			// Just removed with the other expired presences (which also stopped their music): enter anew.
+			$row = null;
+		}
 
 		if ($row !== null && $row->getOfficeId() !== $office->getId()) {
 			if ($row->getLeaseUntil() >= $now && !$takeover) {
@@ -132,11 +150,14 @@ class RoomService {
 				if ($row->getLeaseUntil() >= $now && !$takeover) {
 					throw new ApiException('ACTIVE_ELSEWHERE', Http::STATUS_CONFLICT, 'You are already here in another window', ['sameOffice' => true]);
 				}
+				$this->signalMapper->deleteSession($office->getId(), $row->getSession());
 				$row->setSession($session);
 				$row->setGeneration($row->getGeneration() + 1);
 				$row->setEnteredAt($now);
 				$row->setEmote(null);
 				$row->setTrajectory($this->encode($this->movement->stop($row->getTrajectoryData(), $now)));
+				// The new window has not opened a microphone.
+				$row->setVoice(false);
 			}
 			$row->setName($profile['name']);
 			$row->setAppearance($this->encode($profile['appearance']));
@@ -147,7 +168,7 @@ class RoomService {
 			$this->presenceMapper->update($row);
 		} else {
 			$rows = $this->presenceMapper->findByOffice($office->getId());
-			$capacity = $this->settings->roomCapacity();
+			$capacity = $this->capacity($office);
 			if (count($rows) >= $capacity) {
 				throw new ApiException('ROOM_FULL', Http::STATUS_CONFLICT, 'This office is full', ['capacity' => $capacity]);
 			}
@@ -204,11 +225,111 @@ class RoomService {
 		} catch (DoesNotExistException) {
 			throw ApiException::unavailable();
 		}
+		$signals = $row->getVoice() ? $this->takeSignals($office, $session) : [];
 		if ($office->getPresenceRev() === $knownRev) {
-			return ['changed' => false, 'rev' => $knownRev, 'serverTime' => $now];
+			return ['changed' => false, 'rev' => $knownRev, 'serverTime' => $now] + ($signals === [] ? [] : ['signals' => $signals]);
 		}
 		return ['changed' => true] + $this->snapshot($office, $office->getPresenceRev(), $now)
-			+ ['you' => ['session' => $session, 'generation' => $row->getGeneration()]];
+			+ ['you' => ['session' => $session, 'generation' => $row->getGeneration()]]
+			+ ($signals === [] ? [] : ['signals' => $signals]);
+	}
+
+	/**
+	 * Signals waiting for this tab, deleted once read. Tabs with Client Push
+	 * also get them pushed and skip ids they already have.
+	 *
+	 * @return list<array{id: int, from: string, body: array}>
+	 */
+	private function takeSignals(Office $office, string $session): array {
+		$rows = $this->signalMapper->findFor($office->getId(), $session);
+		$this->signalMapper->deleteIds(array_map(static fn (Signal $s) => $s->getId(), $rows));
+		return array_map(static fn (Signal $s) => [
+			'id' => $s->getId(),
+			'from' => $s->getFromSession(),
+			'body' => json_decode($s->getBody(), true),
+		], $rows);
+	}
+
+	/**
+	 * Turns voice on or off for this tab. With voice on, others in the office
+	 * can send this tab WebRTC signals; the audio itself never reaches PHP.
+	 */
+	public function setVoice(IUser $user, Office $office, string $session, mixed $on): array {
+		if (!is_bool($on)) {
+			throw ApiException::invalid('Invalid voice');
+		}
+		if ($on && !$this->settings->voiceEnabled()) {
+			throw ApiException::denied();
+		}
+		$result = $this->changeOwn($user, $office, $session, function (Presence $row) use ($on) {
+			if ($row->getVoice() === $on) {
+				return false;
+			}
+			$row->setVoice($on);
+			return true;
+		});
+		if (!$on) {
+			$this->signalMapper->deleteSession($office->getId(), $session);
+		}
+		return $result;
+	}
+
+	/**
+	 * Passes a WebRTC offer, answer or goodbye to another tab in the office.
+	 * Both people must be inside with voice on. The signal is pushed to the
+	 * receiver and kept until their next poll, so it arrives with or without
+	 * Client Push.
+	 *
+	 * @return array{id: int, serverTime: int}
+	 * @throws ApiException
+	 */
+	public function signal(IUser $user, Office $office, string $session, mixed $to, mixed $body): array {
+		if (!$this->settings->voiceEnabled()) {
+			throw ApiException::denied();
+		}
+		$this->assertSession($session);
+		if (!is_string($to) || preg_match(self::SESSION_PATTERN, $to) !== 1 || $to === $session) {
+			throw ApiException::invalid('Invalid signal');
+		}
+		if (!is_array($body) || !in_array($body['type'] ?? null, self::SIGNAL_TYPES, true)
+			|| array_diff(array_keys($body), ['type', 'sdp']) !== []
+			|| (array_key_exists('sdp', $body) && !is_string($body['sdp']))) {
+			throw ApiException::invalid('Invalid signal');
+		}
+		$encoded = $this->encode($body);
+		if (strlen($encoded) > self::SIGNAL_MAX_BYTES) {
+			throw ApiException::invalid('The signal is too large');
+		}
+		$row = $this->requirePresence($user, $office, $session);
+		if (!$row->getVoice()) {
+			throw ApiException::denied();
+		}
+		$now = $this->clock->nowMs();
+		$target = null;
+		foreach ($this->presenceMapper->findByOffice($office->getId()) as $candidate) {
+			if ($candidate->getSession() === $to && $this->isShown($candidate, $now) && $candidate->getVoice()) {
+				$target = $candidate;
+			}
+		}
+		if ($target === null) {
+			throw new ApiException('PERSON_UNAVAILABLE', Http::STATUS_NOT_FOUND, 'This person does not have voice on here');
+		}
+		$signal = new Signal();
+		$signal->setOfficeId($office->getId());
+		$signal->setToSession($to);
+		$signal->setFromSession($session);
+		$signal->setBody($encoded);
+		$signal->setCreatedAt($now);
+		$this->signalMapper->insert($signal);
+		// Every tab of the receiver gets the message; "to" says which one it is for.
+		$this->push->push([$target->getUid()], [
+			'office' => $office->getToken(),
+			'id' => $signal->getId(),
+			'to' => $to,
+			'from' => $session,
+			'body' => $body,
+		], PushService::SIGNAL_MESSAGE);
+		return ['id' => $signal->getId(), 'serverTime' => $now];
 	}
 
 	/** @param mixed $path list of [x, y] cells starting ahead on the current path */
@@ -296,10 +417,7 @@ class RoomService {
 			$office = reset($locked);
 			$row = $this->lockedPresence($user, $office, $session);
 			$now = $this->clock->nowMs();
-			[$x, $y] = $this->movement->positionAt($row->getTrajectoryData(), $now);
-			if (hypot((float)$x - (float)$prop['cell'][0], (float)$y - (float)$prop['cell'][1]) > (float)$prop['radius'] + 1e-9) {
-				throw new ApiException('OUT_OF_REACH', Http::STATUS_UNPROCESSABLE_ENTITY, 'Walk closer first');
-			}
+			$this->assertReach($row, $prop['cell'], (float)$prop['radius'], $now);
 			$state = json_decode($office->getRoomState(), true);
 			$props = $office->getActiveProps($now);
 			if (isset($props[$prop['id']])) {
@@ -465,11 +583,126 @@ class RoomService {
 		}
 	}
 
+	/**
+	 * Starts the office's music player with audio files of the caller, who
+	 * must stand at the player. Everyone inside hears it, louder the closer
+	 * they are, while the caller stays in the office. Replaces what was playing.
+	 *
+	 * @param mixed $tracks list of {fileId, durationMs}
+	 * @throws ApiException
+	 */
+	public function startMusic(IUser $user, Office $office, string $session, mixed $tracks): array {
+		$player = $this->catalog->player($this->catalog->layout($office->getLayoutId()));
+		if ($player === null) {
+			throw ApiException::invalid('This office has no music player');
+		}
+		if (!is_array($tracks) || !array_is_list($tracks) || $tracks === [] || count($tracks) > self::MUSIC_MAX_TRACKS) {
+			throw ApiException::invalid('Choose 1 to 10 tracks');
+		}
+		$this->requirePresence($user, $office, $session);
+		$clean = [];
+		foreach ($tracks as $track) {
+			if (!is_array($track) || !is_int($track['fileId'] ?? null) || !is_int($track['durationMs'] ?? null)) {
+				throw ApiException::invalid('Invalid track');
+			}
+			$file = $this->music->file($user->getUID(), $track['fileId']);
+			$clean[] = [
+				'fileId' => $file->getId(),
+				'title' => mb_substr(pathinfo($file->getName(), PATHINFO_FILENAME), 0, 120),
+				'durationMs' => max(self::MUSIC_MIN_MS, min(self::MUSIC_MAX_MS, $track['durationMs'])),
+			];
+		}
+		return $this->mutate([$office->getId()], function (array $locked) use ($user, $session, $player, $clean) {
+			$office = reset($locked);
+			$row = $this->lockedPresence($user, $office, $session);
+			$now = $this->clock->nowMs();
+			$this->assertReach($row, $player['cell'], (float)$player['radius'], $now);
+			$music = ['uid' => $user->getUID(), 'name' => $row->getName(), 'startedAt' => $now, 'tracks' => $clean];
+			$this->saveMusic($office, $music);
+			return fn (int $rev) => ['music' => self::shownMusic($music), 'rev' => $rev, 'serverTime' => $now];
+		});
+	}
+
+	/** Stops the music; anyone at the player may. */
+	public function stopMusic(IUser $user, Office $office, string $session): array {
+		$player = $this->catalog->player($this->catalog->layout($office->getLayoutId()));
+		$this->requirePresence($user, $office, $session);
+		return $this->mutate([$office->getId()], function (array $locked) use ($user, $session, $player) {
+			$office = reset($locked);
+			$row = $this->lockedPresence($user, $office, $session);
+			$now = $this->clock->nowMs();
+			if ($player === null || $this->musicState($office) === null) {
+				throw new NoChangeException(['music' => null, 'serverTime' => $now]);
+			}
+			$this->assertReach($row, $player['cell'], (float)$player['radius'], $now);
+			$this->saveMusic($office, null);
+			return fn (int $rev) => ['music' => null, 'rev' => $rev, 'serverTime' => $now];
+		});
+	}
+
+	/**
+	 * The audio file of a track that is playing, for someone inside. Checked
+	 * on every request: the caller is inside, the music still plays, the
+	 * person who started it is still inside and may still read the file.
+	 *
+	 * @throws ApiException
+	 */
+	public function musicTrack(IUser $user, Office $office, int $index): File {
+		$now = $this->clock->nowMs();
+		$row = $this->presenceMapper->findByUidKey(self::uidKey($user->getUID()));
+		if ($row === null || $row->getOfficeId() !== $office->getId() || !$this->isShown($row, $now)) {
+			throw new ApiException('NOT_PRESENT', Http::STATUS_GONE, 'You are not in this office');
+		}
+		$music = $this->musicState($office);
+		$starter = $music === null ? null : $this->presenceMapper->findByUidKey(self::uidKey($music['uid']));
+		if ($music === null || !isset($music['tracks'][$index]) || $starter === null
+			|| $starter->getOfficeId() !== $office->getId() || !$this->isShown($starter, $now)) {
+			throw new ApiException('MUSIC_STOPPED', Http::STATUS_NOT_FOUND, 'The music stopped');
+		}
+		return $this->music->file($music['uid'], (int)$music['tracks'][$index]['fileId']);
+	}
+
+	/** @param array{0: int, 1: int} $cell */
+	private function assertReach(Presence $row, array $cell, float $radius, int $now): void {
+		[$x, $y] = $this->movement->positionAt($row->getTrajectoryData(), $now);
+		if (hypot((float)$x - (float)$cell[0], (float)$y - (float)$cell[1]) > $radius + 1e-9) {
+			throw new ApiException('OUT_OF_REACH', Http::STATUS_UNPROCESSABLE_ENTITY, 'Walk closer first');
+		}
+	}
+
+	/** @return array{uid: string, name: string, startedAt: int, tracks: list<array{fileId: int, title: string, durationMs: int}>}|null */
+	private function musicState(Office $office): ?array {
+		$music = json_decode($office->getRoomState(), true)['music'] ?? null;
+		return is_array($music) && is_array($music['tracks'] ?? null) ? $music : null;
+	}
+
+	private function saveMusic(Office $office, ?array $music): void {
+		$state = json_decode($office->getRoomState(), true);
+		$state = is_array($state) ? $state : [];
+		$state['music'] = $music;
+		$this->officeMapper->updateRoomState($office->getId(), $this->encode($state));
+		$office->setRoomState($this->encode($state));
+		$this->queue($office, ['kind' => 'music', 'music' => self::shownMusic($music)]);
+	}
+
+	/** What people inside see of the music: no file ids. */
+	private static function shownMusic(?array $music): ?array {
+		if ($music === null) {
+			return null;
+		}
+		return [
+			'uid' => $music['uid'],
+			'name' => $music['name'],
+			'startedAt' => $music['startedAt'],
+			'tracks' => array_map(static fn (array $t) => ['title' => $t['title'], 'durationMs' => $t['durationMs']], $music['tracks']),
+		];
+	}
+
 	/** Tells people in the room that the office settings changed. */
 	public function announceConfig(Office $office): void {
 		$this->mutate([$office->getId()], function (array $locked) {
 			$office = reset($locked);
-			$this->queue($office, ['kind' => 'config', 'configRev' => $office->getConfigRev(), 'decor' => $this->decor($office), 'title' => $office->getTitle()]);
+			$this->queue($office, ['kind' => 'config', 'configRev' => $office->getConfigRev(), 'decor' => $this->decor($office), 'title' => $office->getTitle(), 'voiceAllowed' => $this->settings->voiceEnabled()]);
 			return null;
 		});
 	}
@@ -534,6 +767,53 @@ class RoomService {
 		$this->queue($office, ['kind' => 'focus', 'focus' => $focus]);
 	}
 
+	/** Tells every office with someone inside that an admin setting changed, such as voice. */
+	public function announceSettings(): void {
+		foreach ($this->officeMapper->findByIds($this->activeOfficeIds()) as $office) {
+			try {
+				$this->announceConfig($office);
+			} catch (ApiException) {
+				// Deleted meanwhile.
+			}
+		}
+	}
+
+	/** People the office holds: the admin setting, at most what its layout fits. */
+	public function capacity(Office $office): int {
+		return min($this->settings->roomCapacity(), $this->catalog->layoutCapacity($office->getLayoutId()));
+	}
+
+	/**
+	 * Switches the office to another layout while nobody is inside: paths are
+	 * stored as cells, so people inside would end up in walls. Desk claims
+	 * the new layout does not have are freed.
+	 *
+	 * @param callable(): mixed $save writes the office row
+	 * @throws ApiException
+	 */
+	public function changeLayout(Office $office, string $layoutId, string $busyMessage, callable $save): void {
+		$deskIds = $this->catalog->deskIds($this->catalog->layout($layoutId));
+		$this->mutate([$office->getId()], function (array $locked) use ($office, $deskIds, $busyMessage, $save) {
+			$fresh = reset($locked);
+			$now = $this->clock->nowMs();
+			$this->removeExpired($fresh, $now);
+			if ($this->presenceMapper->findByOffice($fresh->getId()) !== []) {
+				throw ApiException::invalid($busyMessage);
+			}
+			$save();
+			$this->deskMapper->deleteOutside($fresh->getId(), $deskIds);
+			$state = json_decode($fresh->getRoomState(), true);
+			$state = is_array($state) ? $state : [];
+			// Props and the music player belong to the old map.
+			unset($state['props'], $state['music']);
+			$state['desks'] = (int)($state['desks'] ?? 0) + 1;
+			$this->officeMapper->updateRoomState($fresh->getId(), $this->encode($state));
+			$office->setRoomState($this->encode($state));
+			$this->queue($fresh, ['kind' => 'desks', 'desksRev' => $state['desks']]);
+			return null;
+		});
+	}
+
 	/** Tells people in the room to fetch the desks again. */
 	public function announceDesks(Office $office): void {
 		$this->mutate([$office->getId()], function (array $locked) {
@@ -594,6 +874,7 @@ class RoomService {
 			}
 			$uids = array_map(static fn (Presence $p) => $p->getUid(), $this->presenceMapper->findByOffice($office->getId()));
 			$this->presenceMapper->deleteByOffice($office->getId());
+			$this->signalMapper->deleteByOffice($office->getId());
 			$this->deskMapper->deleteByOffice($office->getId());
 			$this->watches->forgetOffice($office->getId());
 			$this->rouletteMapper->deleteByOffice($office->getId());
@@ -637,6 +918,7 @@ class RoomService {
 	/** Background cleanup of leases that ran out while nobody polled. */
 	public function expireStale(int $limit = 100): int {
 		$now = $this->clock->nowMs();
+		$this->signalMapper->deleteCreatedBefore($now - self::SIGNAL_TTL_MS);
 		$offices = $this->presenceMapper->findOfficesWithExpired($now, $limit);
 		foreach ($offices as $officeId) {
 			try {
@@ -783,7 +1065,12 @@ class RoomService {
 	 */
 	private function removePresence(Office $office, Presence $row, string $reason, array $extraRecipients = []): void {
 		$this->presenceMapper->delete($row);
+		$this->signalMapper->deleteSession($office->getId(), $row->getSession());
 		$this->queue($office, ['kind' => 'remove', 'uid' => $row->getUid(), 'reason' => $reason], $extraRecipients);
+		// The music is the player's own file; it stops when they leave.
+		if (($this->musicState($office)['uid'] ?? null) === $row->getUid()) {
+			$this->saveMusic($office, null);
+		}
 		$focus = json_decode($office->getRoomState(), true)['focus'] ?? null;
 		if (is_array($focus) && in_array($row->getUid(), $focus['uids'] ?? [], true)) {
 			// An ended session is dropped entirely, so no member list outlives it.
@@ -891,13 +1178,15 @@ class RoomService {
 			'title' => $office->getTitle(),
 			'layoutId' => $office->getLayoutId(),
 			'catalogHash' => $this->catalog->hash(),
-			'capacity' => $this->settings->roomCapacity(),
+			'capacity' => $this->capacity($office),
 			'decor' => $this->decor($office),
 			'participants' => $participants,
 			'props' => $props,
 			'call' => $this->callState($office),
 			'desksRev' => $this->desksRev($office),
 			'focus' => $this->shownFocus($office, $now, array_column($participants, 'uid')),
+			'voiceAllowed' => $this->settings->voiceEnabled(),
+			'music' => $this->shownMusicFor($office, array_column($participants, 'uid')),
 		];
 	}
 
@@ -915,6 +1204,16 @@ class RoomService {
 		return $focus['uids'] === [] ? null : $focus;
 	}
 
+	/**
+	 * The music while the person who started it is inside.
+	 *
+	 * @param list<string> $present
+	 */
+	private function shownMusicFor(Office $office, array $present): ?array {
+		$music = $this->musicState($office);
+		return $music !== null && in_array($music['uid'], $present, true) ? self::shownMusic($music) : null;
+	}
+
 	private function desksRev(Office $office): int {
 		return (int)(json_decode($office->getRoomState(), true)['desks'] ?? 0);
 	}
@@ -930,7 +1229,9 @@ class RoomService {
 			'generation' => $row->getGeneration(),
 			'enteredAt' => $row->getEnteredAt(),
 			'note' => $row->getNoteText($now),
-			'birthday' => BirthdayService::isToday($row->getBirthday(), $now),
+			'birthday' => $this->birthdays->isToday($row->getUid(), $row->getBirthday(), $now),
+			// The tab to send voice signals to, only while voice is on.
+			'voice' => $row->getVoice() ? $row->getSession() : null,
 		];
 	}
 

@@ -82,6 +82,13 @@ onMounted(loadOffices)
 				{{ t('virtualoffice', 'Admins can then create offices that every account can enter. Team and group offices are always available.') }}
 			</p>
 
+			<NcCheckboxRadioSwitch :modelValue="settings.voice" type="switch" @update:modelValue="(value: boolean) => save({ voice: value })">
+				{{ t('virtualoffice', 'Allow voice') }}
+			</NcCheckboxRadioSwitch>
+			<p class="admin__hint">
+				{{ t('virtualoffice', 'People who turn on their microphone hear others standing close by, as in a game. Audio goes directly between browsers and is never recorded. Voice uses the STUN and TURN servers set up in Talk; company networks often need a TURN server. Voice needs HTTPS.') }}
+			</p>
+
 			<p v-if="message" role="status">
 				{{ message }}
 			</p>

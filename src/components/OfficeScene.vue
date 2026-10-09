@@ -5,14 +5,15 @@
 <script setup lang="ts">
 import type { RoomSession } from '../session/room.ts'
 
-import { t } from '@nextcloud/l10n'
+import { getCanonicalLocale, t } from '@nextcloud/l10n'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { statusLabel, zoneLabels } from '../labels.ts'
 import { SceneRenderer } from '../scene/renderer.ts'
+import { clockOf } from '../session/time.ts'
 
 import '../scene/scene.css'
 
-const props = defineProps<{ session: RoomSession, reducedEffects: boolean }>()
+const props = withDefaults(defineProps<{ session: RoomSession, reducedEffects: boolean, speaking?: string[] }>(), { speaking: () => [] })
 const emit = defineEmits<{ blocked: [] }>()
 const root = ref<HTMLElement | null>(null)
 let renderer: SceneRenderer | null = null
@@ -32,6 +33,15 @@ onMounted(() => {
 		youName: (name: string) => t('virtualoffice', '{name} (you)', { name }),
 		statusLabel,
 		reducedMotion: () => props.reducedEffects || media.matches,
+		speaking: (uid: string) => props.speaking.includes(uid),
+		voiceLabel: t('virtualoffice', 'Voice on'),
+		clockLabel: (uid: string) => {
+			const clock = clockOf(props.session.state.times[uid], props.session.clock.serverNow(), getCanonicalLocale())
+			if (!clock) {
+				return ''
+			}
+			return clock.off ? t('virtualoffice', '{time}, outside working hours', { time: clock.time }) : clock.time
+		},
 		onPropBlocked: () => emit('blocked'),
 	})
 	renderer.start()

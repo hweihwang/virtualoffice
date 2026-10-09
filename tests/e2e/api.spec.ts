@@ -2,8 +2,12 @@
  * SPDX-FileCopyrightText: 2026 Hoang Pham
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+import type { Cell } from '../../shared/catalog.ts'
+
 import { expect, test } from '@playwright/test'
-import { Api, clearPresence, createTeam, occ, removeFromTeam, session, sql, uniqueName, waitFor } from './helpers.ts'
+import { getLayout } from '../../shared/catalog.ts'
+import { findPath } from '../../shared/movement.ts'
+import { Api, clearPresence, createTeam, occ, removeFromTeam, session, sql, toneWav, uniqueName, upload, waitFor } from './helpers.ts'
 
 let alice: Api, bao: Api, chi: Api, admin: Api, disabled: Api
 let teamId: string
@@ -847,5 +851,205 @@ test.describe('review regressions 1.2', () => {
 		// Tokens come from the browser; someone outside the conversation still sees nothing.
 		expect(await listed(chi)).toEqual([])
 		expect((await bao.call('POST', '/offices/directory', { conversations: 'nope' })).status).toBe(422)
+	})
+})
+
+/** Walks someone along the shortest path and waits until they arrive. */
+async function walk(api: Api, token: string, s: string, layoutId: string, from: Cell, to: Cell): Promise<void> {
+	const path = findPath(getLayout(layoutId), from, to)!
+	const moved = await api.call('POST', `/offices/${token}/room/move`, { session: s, path })
+	expect(moved.status).toBe(200)
+	await new Promise((r) => setTimeout(r, path.length * 250 + 150))
+}
+
+const startOf = (snapshot: any, uid: string): Cell => snapshot.participants.find((p: any) => p.uid === uid).trajectory.points[0]
+
+test.describe('1.1: layouts, music, voice and time zones', () => {
+	test('an office gets a layout, which changes only while nobody is inside', async () => {
+		const small = await alice.call('POST', '/offices', { title: uniqueName('Small'), audience: { kind: 'team', id: teamId }, layoutId: 'compact-office-v1' })
+		expect(small.status).toBe(201)
+		expect(small.data).toMatchObject({ layoutId: 'compact-office-v1', capacity: 12 })
+		expect((await alice.call('POST', '/offices', { title: 'Castle', audience: { kind: 'team', id: teamId }, layoutId: 'castle-v1' })).status).toBe(422)
+		const large = await teamOffice()
+		expect(large).toMatchObject({ layoutId: 'starter-office-v1', capacity: 32 })
+
+		const inside = await enter(bao, large.token)
+		expect(inside.data).toMatchObject({ layoutId: 'starter-office-v1', capacity: 32 })
+		await bao.call('PUT', `/offices/${large.token}/desks/d10`)
+		await alice.call('PUT', `/offices/${large.token}/desks/d2`)
+		const busy = await alice.call('PATCH', `/offices/${large.token}`, { layoutId: 'compact-office-v1' }, { 'If-Match': `"${large.revision}"` })
+		expect(busy.status).toBe(422)
+		expect(busy.data.code).toBe('INVALID_INPUT')
+		expect(busy.data.message).toBe('Change the layout when nobody is inside')
+
+		await bao.call('POST', `/offices/${large.token}/room/leave`, { session: inside.session })
+		const changed = await alice.call('PATCH', `/offices/${large.token}`, { layoutId: 'compact-office-v1' }, { 'If-Match': `"${large.revision}"` })
+		expect(changed.status).toBe(200)
+		expect(changed.data).toMatchObject({ layoutId: 'compact-office-v1', capacity: 12 })
+		// Desk 10 does not exist in the small office; desk 2 does.
+		expect((await alice.call('GET', `/offices/${large.token}/desks`)).data.desks.map((d: any) => d.deskId)).toEqual(['d2'])
+		expect((await bao.call('PUT', `/offices/${large.token}/desks/d10`)).status).toBe(422)
+		const back = await enter(bao, large.token)
+		expect(back.data).toMatchObject({ layoutId: 'compact-office-v1', capacity: 12 })
+		// The first one in arrives at the coffee corner of the small map.
+		expect(startOf(back.data, 'bao')).toEqual(getLayout('compact-office-v1').zoneAnchors.coffee)
+	})
+
+	test('music plays the starter\'s own file to people inside, seekable, until the starter leaves', async () => {
+		const office = await teamOffice()
+		const fileId = await upload(alice, 'alice', `office-song-${session().slice(0, 6)}.wav`, toneWav(), 'audio/wav')
+		const notAudio = await upload(alice, 'alice', `notes-${session().slice(0, 6)}.txt`, Buffer.from('hello'), 'text/plain')
+		const a = await enter(alice, office.token)
+		const tracks = [{ fileId, durationMs: 4000 }]
+		expect((await alice.call('POST', `/offices/${office.token}/room/music`, { session: a.session, tracks })).data.code).toBe('OUT_OF_REACH')
+		await walk(alice, office.token, a.session, 'starter-office-v1', startOf(a.data, 'alice'), [11, 2])
+		expect((await alice.call('POST', `/offices/${office.token}/room/music`, { session: a.session, tracks: [{ fileId: notAudio, durationMs: 4000 }] })).data.message).toBe('Choose audio files')
+		// Bảo cannot play a file of Alice's.
+		const b = await enter(bao, office.token)
+		const started = await alice.call('POST', `/offices/${office.token}/room/music`, { session: a.session, tracks })
+		expect(started.status).toBe(200)
+		expect(started.data.music).toMatchObject({ uid: 'alice', name: 'Alice', tracks: [{ title: expect.stringMatching(/^office-song-/), durationMs: 4000 }] })
+		expect(JSON.stringify(started.data)).not.toContain(String(fileId))
+		const polled = await bao.call('GET', `/offices/${office.token}/room?session=${b.session}&rev=0`)
+		expect(polled.data.music.uid).toBe('alice')
+
+		const url = `/index.php/apps/virtualoffice/o/${office.token}/music/0`
+		const whole = await bao.raw('GET', url)
+		expect(whole.status()).toBe(200)
+		expect(whole.headers()['content-type']).toBe('audio/wav')
+		expect(whole.headers()['accept-ranges']).toBe('bytes')
+		expect((await whole.body()).length).toBe(toneWav().length)
+		const part = await bao.raw('GET', url, { Range: 'bytes=44-143' })
+		expect(part.status()).toBe(206)
+		expect(part.headers()['content-range']).toBe(`bytes 44-143/${toneWav().length}`)
+		expect((await part.body()).equals(toneWav().subarray(44, 144))).toBe(true)
+		expect((await bao.raw('GET', url, { Range: 'bytes=999999-' })).status()).toBe(416)
+		expect((await bao.raw('GET', `/index.php/apps/virtualoffice/o/${office.token}/music/1`)).status()).toBe(404)
+		// Outside the office, or outside its audience: nothing.
+		expect((await chi.raw('GET', url)).status()).toBe(404)
+		await bao.call('POST', `/offices/${office.token}/room/leave`, { session: b.session })
+		expect((await bao.raw('GET', url)).status()).toBe(404)
+
+		// The music is Alice's file: it stops when she leaves.
+		const again = await enter(bao, office.token)
+		await alice.call('POST', `/offices/${office.token}/room/leave`, { session: a.session })
+		expect((await bao.raw('GET', url)).status()).toBe(404)
+		expect((await bao.call('GET', `/offices/${office.token}/room?session=${again.session}&rev=0`)).data.music).toBeNull()
+	})
+
+	for (const how of ['she comes back', 'someone else polls', 'the background job runs']) {
+		test(`music stops when its owner's visit times out and ${how}`, async () => {
+			const office = await teamOffice()
+			const fileId = await upload(alice, 'alice', `timeout-${session().slice(0, 6)}.wav`, toneWav(2), 'audio/wav')
+			const a = await enter(alice, office.token)
+			await walk(alice, office.token, a.session, 'starter-office-v1', startOf(a.data, 'alice'), [11, 2])
+			expect((await alice.call('POST', `/offices/${office.token}/room/music`, { session: a.session, tracks: [{ fileId, durationMs: 2000 }] })).status).toBe(200)
+			const b = await enter(bao, office.token)
+			// Alice's heartbeats stopped, for example in a background tab.
+			sql(`UPDATE oc_vo_presence SET lease_until = 1 WHERE session = '${a.session}'`)
+			if (how === 'she comes back') {
+				const back = await enter(alice, office.token)
+				expect(back.status).toBe(200)
+				expect(back.data.participants.map((p: any) => p.uid).sort()).toEqual(['alice', 'bao'])
+				expect(back.data.music).toBeNull()
+			} else if (how === 'someone else polls') {
+				expect((await bao.call('GET', `/offices/${office.token}/room?session=${b.session}&rev=0`)).data.music).toBeNull()
+			} else {
+				occ('background-job:execute', '--force-execute', sql("SELECT id FROM oc_jobs WHERE class = 'OCA\\VirtualOffice\\BackgroundJob\\ExpirePresence'"))
+			}
+			expect(sql(`SELECT room_state FROM oc_vo_offices WHERE token = '${office.token}'`)).toContain('"music":null')
+			expect((await bao.raw('GET', `/index.php/apps/virtualoffice/o/${office.token}/music/0`)).status()).toBe(404)
+		})
+	}
+
+	test('anyone at the player stops the music', async () => {
+		const office = await teamOffice()
+		const fileId = await upload(alice, 'alice', `stop-song-${session().slice(0, 6)}.wav`, toneWav(2), 'audio/wav')
+		const a = await enter(alice, office.token)
+		await walk(alice, office.token, a.session, 'starter-office-v1', startOf(a.data, 'alice'), [11, 2])
+		await alice.call('POST', `/offices/${office.token}/room/music`, { session: a.session, tracks: [{ fileId, durationMs: 2000 }] })
+		const b = await enter(bao, office.token)
+		expect((await bao.call('POST', `/offices/${office.token}/room/music/stop`, { session: b.session })).data.code).toBe('OUT_OF_REACH')
+		await walk(bao, office.token, b.session, 'starter-office-v1', startOf(b.data, 'bao'), [13, 3])
+		const stopped = await bao.call('POST', `/offices/${office.token}/room/music/stop`, { session: b.session })
+		expect(stopped.status).toBe(200)
+		expect(stopped.data.music).toBeNull()
+		expect((await bao.raw('GET', `/index.php/apps/virtualoffice/o/${office.token}/music/0`)).status()).toBe(404)
+	})
+
+	test('voice signals go only between tabs with voice on, by push and poll', async () => {
+		const office = await teamOffice()
+		const a = await enter(alice, office.token)
+		const b = await enter(bao, office.token)
+		const offer = { type: 'offer', sdp: 'v=0\r\n' }
+		expect((await alice.call('POST', `/offices/${office.token}/room/signal`, { session: a.session, to: b.session, body: offer })).data.code).toBe('ACTION_DENIED')
+		const on = await alice.call('POST', `/offices/${office.token}/room/voice`, { session: a.session, on: true })
+		expect(on.data.participant.voice).toBe(a.session)
+		expect((await alice.call('POST', `/offices/${office.token}/room/signal`, { session: a.session, to: b.session, body: offer })).data.code).toBe('PERSON_UNAVAILABLE')
+		await bao.call('POST', `/offices/${office.token}/room/voice`, { session: b.session, on: true })
+		const polled = await bao.call('GET', `/offices/${office.token}/room?session=${b.session}&rev=0`)
+		expect(polled.data.participants.find((p: any) => p.uid === 'alice').voice).toBe(a.session)
+		expect(polled.data.voiceAllowed).toBe(true)
+
+		for (const bad of [{ type: 'candidate', sdp: 'x' }, { type: 'offer', sdp: 'x'.repeat(16_400) }, { type: 'bye', extra: 1 }, 'offer']) {
+			expect((await alice.call('POST', `/offices/${office.token}/room/signal`, { session: a.session, to: b.session, body: bad })).status).toBe(422)
+		}
+		const sent = await alice.call('POST', `/offices/${office.token}/room/signal`, { session: a.session, to: b.session, body: offer })
+		expect(sent.status).toBe(200)
+		const first = await bao.call('GET', `/offices/${office.token}/room?session=${b.session}&rev=${polled.data.rev}`)
+		expect(first.data.signals).toEqual([{ id: sent.data.id, from: a.session, body: offer }])
+		const second = await bao.call('GET', `/offices/${office.token}/room?session=${b.session}&rev=${polled.data.rev}`)
+		expect(second.data.signals).toBeUndefined()
+
+		// Someone outside the office cannot signal into it.
+		expect((await chi.call('POST', `/offices/${office.token}/room/signal`, { session: session(), to: b.session, body: offer })).data.code).toBe('NOT_PRESENT')
+		// Signals left for a tab are dropped when it leaves.
+		await alice.call('POST', `/offices/${office.token}/room/signal`, { session: a.session, to: b.session, body: { type: 'bye' } })
+		await bao.call('POST', `/offices/${office.token}/room/leave`, { session: b.session })
+		expect(sql(`SELECT count(*) FROM oc_vo_signals WHERE to_session = '${b.session}'`)).toBe('0')
+
+		try {
+			const before = (await alice.call('GET', `/offices/${office.token}/room?session=${a.session}&rev=0`)).data.rev
+			await admin.call('PUT', '/admin/settings', { voice: false })
+			// Everyone inside learns at once, also by polling.
+			const told = await alice.call('GET', `/offices/${office.token}/room?session=${a.session}&rev=${before}`)
+			expect(told.data).toMatchObject({ changed: true, voiceAllowed: false })
+			const b2 = await enter(bao, office.token)
+			expect((await bao.call('POST', `/offices/${office.token}/room/voice`, { session: b2.session, on: true })).data.code).toBe('ACTION_DENIED')
+			// Alice still had voice on: her signals stop, and her browser sees voice is no longer allowed.
+			expect((await alice.call('POST', `/offices/${office.token}/room/signal`, { session: a.session, to: b2.session, body: offer })).data.code).toBe('ACTION_DENIED')
+			expect((await alice.call('GET', `/offices/${office.token}/room?session=${a.session}&rev=0`)).data.voiceAllowed).toBe(false)
+			expect((await alice.call('POST', `/offices/${office.token}/room/voice`, { session: a.session, on: false })).data.participant.voice).toBeNull()
+		} finally {
+			await admin.call('PUT', '/admin/settings', { voice: true })
+		}
+	})
+
+	test('members see each other\'s time zone and working hours', async () => {
+		const office = await teamOffice()
+		const AVAILABILITY = "DELETE FROM oc_properties WHERE userid = 'bao' AND propertyname = '{urn:ietf:params:xml:ns:caldav}calendar-availability'"
+		sql(AVAILABILITY)
+		occ('user:setting', 'bao', 'core', 'timezone', 'Asia/Ho_Chi_Minh')
+		occ('user:setting', 'chi', 'core', 'timezone', 'America/New_York')
+		await enter(alice, office.token)
+		await bao.call('PUT', `/offices/${office.token}/desks/d3`)
+		const times = (await alice.call('GET', `/offices/${office.token}/desks`)).data.times
+		expect(Object.keys(times).sort()).toEqual(['alice', 'bao'])
+		expect(times.bao).toMatchObject({ timeZone: 'Asia/Ho_Chi_Minh', hours: { timeZone: 'Asia/Ho_Chi_Minh', default: true, days: { 1: [[540, 1020]], 6: [] } } })
+		// Personal settings › Availability, saved like the dav app does.
+		const availability = 'BEGIN:VCALENDAR\r\nPRODID:Nextcloud DAV app\r\nBEGIN:VAVAILABILITY\r\nBEGIN:AVAILABLE\r\nDTSTART;TZID=Asia/Ho_Chi_Minh:20240101T080000\r\nDTEND;TZID=Asia/Ho_Chi_Minh:20240101T120000\r\nUID:e2e\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,WE\r\nEND:AVAILABLE\r\nEND:VAVAILABILITY\r\nEND:VCALENDAR\r\n'
+		const patch = await bao.raw(
+			'PROPPATCH',
+			'/remote.php/dav/calendars/bao/inbox',
+			{ 'Content-Type': 'application/xml' },
+			`<?xml version="1.0"?><d:propertyupdate xmlns:d="DAV:"><d:set><d:prop><c:calendar-availability xmlns:c="urn:ietf:params:xml:ns:caldav">${availability.replace(/\r\n/g, '&#13;\n')}</c:calendar-availability></d:prop></d:set></d:propertyupdate>`,
+		)
+		expect(patch.status()).toBe(207)
+		try {
+			const hours = (await alice.call('GET', `/offices/${office.token}/desks`)).data.times.bao.hours
+			expect(hours).toEqual({ timeZone: 'Asia/Ho_Chi_Minh', default: false, days: { 1: [[480, 720]], 2: [], 3: [[480, 720]], 4: [], 5: [], 6: [], 7: [] } })
+		} finally {
+			sql(AVAILABILITY)
+		}
 	})
 })

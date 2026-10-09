@@ -106,6 +106,37 @@ class RoomController extends OCSController {
 		return $this->respond(fn () => $this->room->leaveFocus($this->user(), $this->offices->getByToken($token), $session));
 	}
 
+	/** Plays the caller's audio files on the office's music player. */
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 30, period: 60)]
+	#[ApiRoute(verb: 'POST', url: '/api/v1/offices/{token}/room/music')]
+	public function music(string $token, string $session = '', mixed $tracks = null): DataResponse {
+		return $this->respond(fn () => $this->room->startMusic($this->user(), $this->offices->getByToken($token), $session, $tracks));
+	}
+
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 120, period: 60)]
+	#[ApiRoute(verb: 'POST', url: '/api/v1/offices/{token}/room/music/stop')]
+	public function stopMusic(string $token, string $session = ''): DataResponse {
+		return $this->respond(fn () => $this->room->stopMusic($this->user(), $this->offices->getByToken($token), $session));
+	}
+
+	/** Voice on or off for this tab. */
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 30, period: 60)]
+	#[ApiRoute(verb: 'POST', url: '/api/v1/offices/{token}/room/voice')]
+	public function voice(string $token, string $session = '', mixed $on = null): DataResponse {
+		return $this->respond(fn () => $this->room->setVoice($this->user(), $this->offices->getByToken($token), $session, $on));
+	}
+
+	/** A WebRTC offer, answer or goodbye for another tab with voice on. */
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 240, period: 60)]
+	#[ApiRoute(verb: 'POST', url: '/api/v1/offices/{token}/room/signal')]
+	public function signal(string $token, string $session = '', mixed $to = null, mixed $body = null): DataResponse {
+		return $this->respond(fn () => $this->room->signal($this->user(), $this->offices->getByToken($token), $session, $to, $body));
+	}
+
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'POST', url: '/api/v1/offices/{token}/room/leave')]
 	public function leave(string $token, string $session = ''): DataResponse {

@@ -178,7 +178,7 @@ class OfficeService {
 	 * @return array{0: Office, 1: bool} the office and whether it was just created
 	 * @throws ApiException
 	 */
-	public function forConversation(IUser $user, mixed $token): array {
+	public function forConversation(IUser $user, mixed $token, ?string $layoutId = null): array {
 		if (!ConversationService::isToken($token) || !$this->accessPolicy->isUsable($user)
 			|| !$this->accessPolicy->isConversationParticipant($user, $token)) {
 			throw ApiException::unavailable();
@@ -193,7 +193,7 @@ class OfficeService {
 			throw new ApiException('CONVERSATION_NOT_SUPPORTED', Http::STATUS_UNPROCESSABLE_ENTITY, 'Offices are available for group and public conversations');
 		}
 		$name = mb_substr(trim($details['name']), 0, 120);
-		$office = $this->newOffice(AccessPolicy::KIND_TALK, $token, $name !== '' ? $name : $this->l10n->t('Conversation office'), [$user->getUID()], $user);
+		$office = $this->newOffice(AccessPolicy::KIND_TALK, $token, $name !== '' ? $name : $this->l10n->t('Conversation office'), [$user->getUID()], $user, $layoutId);
 		$office->setConfig(json_encode(['decor' => $this->catalog->validateDecor([]), 'talk' => ['source' => 'conversation', 'token' => $token, 'label' => $office->getTitle()]], JSON_THROW_ON_ERROR));
 		$office->setTalkToken($token);
 		$office = $this->mapper->insert($office);
@@ -208,8 +208,9 @@ class OfficeService {
 	}
 
 	/** @throws ApiException */
-	public function create(IUser $user, mixed $title, mixed $audience, mixed $managerUid): Office {
+	public function create(IUser $user, mixed $title, mixed $audience, mixed $managerUid, mixed $layoutId = null): Office {
 		$title = $this->cleanTitle($title);
+		$layoutId = $this->cleanLayout($layoutId ?? $this->catalog->defaultLayoutId());
 		if (!is_array($audience) || !is_string($audience['kind'] ?? null) || !is_string($audience['id'] ?? null)) {
 			throw ApiException::invalid($this->l10n->t('Choose who the office is for'));
 		}
@@ -236,7 +237,7 @@ class OfficeService {
 				$managers = $this->initialManagers($managerUid, fn (string $uid) => $this->groupManager->isInGroup($uid, $id));
 				break;
 			case AccessPolicy::KIND_TALK:
-				return $this->forConversation($user, $id)[0];
+				return $this->forConversation($user, $id, $layoutId)[0];
 			case AccessPolicy::KIND_INSTANCE:
 				if (!$isAdmin || !$this->settings->instanceOfficesEnabled()) {
 					throw ApiException::denied();
@@ -248,11 +249,11 @@ class OfficeService {
 				throw ApiException::invalid($this->l10n->t('Choose who the office is for'));
 		}
 
-		return $this->mapper->insert($this->newOffice($kind, $id, $title, $managers, $user));
+		return $this->mapper->insert($this->newOffice($kind, $id, $title, $managers, $user, $layoutId));
 	}
 
 	/** @param list<string> $managers */
-	private function newOffice(string $kind, string $id, string $title, array $managers, IUser $user): Office {
+	private function newOffice(string $kind, string $id, string $title, array $managers, IUser $user, ?string $layoutId = null): Office {
 		$now = $this->clock->nowMs();
 		$office = new Office();
 		$office->setToken($this->random->generate(32, '0123456789abcdef'));
@@ -260,7 +261,7 @@ class OfficeService {
 		$office->setAudienceId($id);
 		$office->setAudienceKey(AccessPolicy::audienceKey($kind, $id));
 		$office->setTitle($title);
-		$office->setLayoutId($this->catalog->defaultLayoutId());
+		$office->setLayoutId($layoutId ?? $this->catalog->defaultLayoutId());
 		$office->setConfig(json_encode(['decor' => $this->catalog->validateDecor([]), 'talk' => null], JSON_THROW_ON_ERROR));
 		$office->setManagers(json_encode($managers, JSON_THROW_ON_ERROR));
 		$office->setRemovals('{}');
@@ -275,13 +276,13 @@ class OfficeService {
 	}
 
 	/**
-	 * @param array<string, mixed> $patch title, decor and/or talk
+	 * @param array<string, mixed> $patch title, decor, talk and/or layoutId
 	 * @throws ApiException
 	 */
 	public function update(IUser $user, Office $office, int $expectedRev, array $patch): Office {
 		$this->accessPolicy->assertCanManage($user, $office);
-		if (array_diff(array_keys($patch), ['title', 'decor', 'talk']) !== [] || $patch === []) {
-			throw ApiException::invalid('Only the title, decor and Talk link can be changed');
+		if (array_diff(array_keys($patch), ['title', 'decor', 'talk', 'layoutId']) !== [] || $patch === []) {
+			throw ApiException::invalid('Only the title, decor, layout and Talk link can be changed');
 		}
 		$config = $office->getConfigData();
 		if ($office->getAudienceKind() === AccessPolicy::KIND_TALK && (array_key_exists('title', $patch) || array_key_exists('talk', $patch))) {
@@ -300,7 +301,14 @@ class OfficeService {
 			$office->setTalkToken($config['talk']['token'] ?? null);
 		}
 		$office->setConfig(json_encode($config, JSON_THROW_ON_ERROR));
-		$office = $this->save($office, $expectedRev);
+		$layoutId = array_key_exists('layoutId', $patch) ? $this->cleanLayout($patch['layoutId']) : $office->getLayoutId();
+		if ($layoutId !== $office->getLayoutId()) {
+			$office->setLayoutId($layoutId);
+			$this->room->changeLayout($office, $layoutId, $this->l10n->t('Change the layout when nobody is inside'), fn () => $this->save($office, $expectedRev, false));
+			$this->room->announceConfig($office);
+		} else {
+			$office = $this->save($office, $expectedRev);
+		}
 		if ($relinked) {
 			// A different conversation: its call state is unknown until Talk reports it.
 			$this->room->forgetCall($office);
@@ -401,6 +409,7 @@ class OfficeService {
 				'label' => $this->audienceLabel($user, $office),
 			],
 			'layoutId' => $office->getLayoutId(),
+			'capacity' => $this->room->capacity($office),
 			'revision' => $office->getConfigRev(),
 			'config' => [
 				'decor' => $this->catalog->validateDecor($config['decor']),
@@ -526,6 +535,14 @@ class OfficeService {
 			throw ApiException::invalid($this->l10n->t('Choose a manager who has access to the office'));
 		}
 		return [$target->getUID()];
+	}
+
+	/** @throws ApiException */
+	private function cleanLayout(mixed $layoutId): string {
+		if (!is_string($layoutId) || !in_array($layoutId, $this->catalog->layoutIds(), true)) {
+			throw ApiException::invalid($this->l10n->t('Choose a layout'));
+		}
+		return $layoutId;
 	}
 
 	/** @throws ApiException */

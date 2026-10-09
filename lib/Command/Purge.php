@@ -44,7 +44,7 @@ class Purge extends Command {
 			return self::FAILURE;
 		}
 		$this->notifications->markProcessed($this->notifications->createNotification()->setApp(Application::APP_ID));
-		foreach (['vo_knocks', 'vo_watches', 'vo_roulette', 'vo_desks', 'vo_presence', 'vo_offices'] as $table) {
+		foreach (['vo_signals', 'vo_knocks', 'vo_watches', 'vo_roulette', 'vo_desks', 'vo_presence', 'vo_offices'] as $table) {
 			$this->db->getQueryBuilder()->delete($table)->executeStatement();
 		}
 		$this->appConfig->deleteApp(Application::APP_ID);

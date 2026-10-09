@@ -22,6 +22,8 @@ class PushService {
 	public const MESSAGE = 'virtualoffice_room';
 	/** Knocks and their answers, sent only to the one person concerned. */
 	public const KNOCK_MESSAGE = 'virtualoffice_knock';
+	/** WebRTC signals for voice, sent only to the person whose tab they are for. */
+	public const SIGNAL_MESSAGE = 'virtualoffice_signal';
 	/** The developer docs of notify_push 1.4.1 name OCA\NotifyPush\IQueue; the code uses this. */
 	private const QUEUE = 'OCA\NotifyPush\Queue\IQueue';
 	/** Returned when notify_push has no Redis; it drops every message. */

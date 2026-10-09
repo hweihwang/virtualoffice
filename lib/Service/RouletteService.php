@@ -36,6 +36,7 @@ class RouletteService {
 		private IUserManager $userManager,
 		private INotificationManager $notifications,
 		private Clock $clock,
+		private TimeService $time,
 	) {
 	}
 
@@ -96,9 +97,11 @@ class RouletteService {
 
 	/**
 	 * Pairs the people who joined, still belong to the audience and are not
-	 * removed for now, avoiding
-	 * last week's partner when possible. With an odd number, one person
-	 * waits for next week.
+	 * removed for now. Each person in shuffled order gets the partner with
+	 * whom they share the most working hours in the coming week, so people in
+	 * far apart time zones still find a time to talk. Last week's partner is
+	 * avoided when possible, and equal choices keep the shuffled order. With
+	 * an odd number, one person waits for next week.
 	 *
 	 * @param ?callable(list<RouletteEntry>): list<RouletteEntry> $shuffle
 	 * @return list<array{0: string, 1: string}>
@@ -124,16 +127,24 @@ class RouletteService {
 		} else {
 			shuffle($pool);
 		}
+		$now = $this->clock->nowMs();
+		$hours = $this->time->forUsers(array_map(static fn (RouletteEntry $e) => $e->getUid(), $pool));
 		$pairs = [];
 		while (count($pool) >= 2) {
 			$first = array_shift($pool);
-			$index = 0;
+			$index = null;
+			$best = -1;
 			foreach ($pool as $i => $candidate) {
-				if ($candidate->getUidKey() !== $first->getLastPartnerKey()) {
+				if ($candidate->getUidKey() === $first->getLastPartnerKey()) {
+					continue;
+				}
+				$shared = TimeService::sharedMinutes($hours[$first->getUid()]['hours'], $hours[$candidate->getUid()]['hours'], $now);
+				if ($shared > $best) {
+					$best = $shared;
 					$index = $i;
-					break;
 				}
 			}
+			$index ??= 0;
 			/** @var RouletteEntry $second */
 			[$second] = array_splice($pool, $index, 1);
 			$first->setLastPartnerKey($second->getUidKey());

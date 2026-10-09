@@ -38,7 +38,22 @@ class Catalog {
 		return $this->data()['defaultLayout'];
 	}
 
-	/** @return array{width: int, height: int, collision: list<string>, spawn: list<array{0: int, 1: int}>, zones: list<array{id: string, rect: array{0: int, 1: int, 2: int, 3: int}}>, zoneAnchors: array<string, array{0: int, 1: int}>, props: list<array{id: string, cell: array{0: int, 1: int}, radius: float, durationMs: int}>, desks?: list<array{id: string, cell: array{0: int, 1: int}}>} */
+	/** @return list<string> */
+	public function layoutIds(): array {
+		return array_keys($this->data()['layouts']);
+	}
+
+	/** Most people a layout holds. */
+	public function layoutCapacity(string $layoutId): int {
+		return (int)($this->layout($layoutId)['capacity'] ?? $this->maxCapacity());
+	}
+
+	/** @return array{cell: array{0: int, 1: int}, zone: string, radius: float, hearing: float}|null */
+	public function player(array $layout): ?array {
+		return $layout['player'] ?? null;
+	}
+
+	/** @return array{width: int, height: int, collision: list<string>, spawn: list<array{0: int, 1: int}>, zones: list<array{id: string, rect: array{0: int, 1: int, 2: int, 3: int}}>, zoneAnchors: array<string, array{0: int, 1: int}>, props: list<array{id: string, cell: array{0: int, 1: int}, radius: float, durationMs: int}>, desks?: list<array{id: string, cell: array{0: int, 1: int}}>, capacity?: int, player?: array{cell: array{0: int, 1: int}, zone: string, radius: float, hearing: float}} */
 	public function layout(string $id): array {
 		$layout = $this->data()['layouts'][$id] ?? null;
 		if (!is_array($layout)) {

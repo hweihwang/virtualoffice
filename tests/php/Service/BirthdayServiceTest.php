@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace OCA\VirtualOffice\Tests\Service;
 
 use OCA\VirtualOffice\Service\BirthdayService;
+use OCA\VirtualOffice\Service\TimeService;
 use OCP\Accounts\IAccount;
 use OCP\Accounts\IAccountManager;
 use OCP\Accounts\IAccountProperty;
@@ -17,7 +18,7 @@ use OCP\IUser;
 use PHPUnit\Framework\TestCase;
 
 class BirthdayServiceTest extends TestCase {
-	private function service(string $value, string $scope): BirthdayService {
+	private function service(string $value, string $scope, ?string $zone = null): BirthdayService {
 		$property = $this->createStub(IAccountProperty::class);
 		$property->method('getValue')->willReturn($value);
 		$property->method('getScope')->willReturn($scope);
@@ -25,7 +26,9 @@ class BirthdayServiceTest extends TestCase {
 		$account->method('getProperty')->willReturn($property);
 		$accounts = $this->createStub(IAccountManager::class);
 		$accounts->method('getAccount')->willReturn($account);
-		return new BirthdayService($accounts);
+		$time = $this->createStub(TimeService::class);
+		$time->method('timeZone')->willReturn($zone);
+		return new BirthdayService($accounts, $time);
 	}
 
 	public function testOnlySharedBirthDatesCount(): void {
@@ -36,10 +39,19 @@ class BirthdayServiceTest extends TestCase {
 		$this->assertNull($this->service('', IAccountManager::SCOPE_LOCAL)->monthDay($user));
 	}
 
-	public function testTodayUsesTheServerDate(): void {
-		$now = mktime(12, 0, 0, 3, 14, 2027) * 1000;
-		$this->assertTrue(BirthdayService::isToday('03-14', $now));
-		$this->assertFalse(BirthdayService::isToday('03-15', $now));
-		$this->assertFalse(BirthdayService::isToday(null, $now));
+	public function testTodayIsTheDateWhereThePersonIs(): void {
+		// 22:00 UTC on March 14 is already March 15 in Hanoi, still March 14 in Los Angeles.
+		$now = (new \DateTimeImmutable('2027-03-14 22:00 UTC'))->getTimestamp() * 1000;
+		$hanoi = $this->service('1990-03-15', IAccountManager::SCOPE_LOCAL, 'Asia/Ho_Chi_Minh');
+		$this->assertTrue($hanoi->isToday('bao', '03-15', $now));
+		$this->assertFalse($hanoi->isToday('bao', '03-14', $now));
+		$losAngeles = $this->service('1990-03-14', IAccountManager::SCOPE_LOCAL, 'America/Los_Angeles');
+		$this->assertTrue($losAngeles->isToday('dana', '03-14', $now));
+		$this->assertFalse($losAngeles->isToday('dana', null, $now));
+	}
+
+	public function testWithoutATimeZoneTheServerDateCounts(): void {
+		$now = (new \DateTimeImmutable('2027-03-14 12:00', new \DateTimeZone(date_default_timezone_get())))->getTimestamp() * 1000;
+		$this->assertTrue($this->service('', IAccountManager::SCOPE_LOCAL)->isToday('alice', '03-14', $now));
 	}
 }

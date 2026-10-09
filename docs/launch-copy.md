@@ -58,6 +58,41 @@ A slow look around The Studio, a small shared office in Nextcloud. It starts wit
 4. The same office in Nextcloud's dark theme.
 5. The Dashboard widget shows who is in your offices.
 
+## 1.1.0
+
+### Short post (Mastodon, Bluesky, LinkedIn)
+
+Virtual Office 1.1 for Nextcloud is out. Turn on your microphone and talk to whoever stands close by, louder the closer they are. Play music from your own Files on the office record player, and everyone hears the same moment. See each person's local time and the hours you share today. Plus a small office for up to 12 people, decorated for winter if you like.
+
+Free and open source, for Nextcloud 35: https://hweihwang.com/virtualoffice/
+
+### Very short post (X)
+
+Virtual Office 1.1 for Nextcloud: talk to whoever stands close by, play music together, and see everyone's local time. Free and open source. https://hweihwang.com/virtualoffice/
+
+### Longer announcement (forum, blog)
+
+Virtual Office 1.1 is out. It gives a Nextcloud Team, group or Talk conversation a small shared office, and this release makes the office sound like one.
+
+Turn on your microphone and the people standing next to you hear you, louder the closer they are and from the side they stand on. Hold V to talk, or use an open mic you mute with M. The Focus desks stay quiet. Audio goes directly between browsers, or through Talk's TURN server, and is never recorded.
+
+The record player by the sofa plays music from your own Nextcloud Files. Everyone inside hears the same moment, softer as they walk away, and the music stops when the person who started it leaves.
+
+For teams across time zones, the people list and the desks show each person's local time, with a moon outside their working hours from Personal settings › Availability. The office header shows the hours everyone works today, and knocking on someone outside their hours asks first. The weekly coffee roulette now pairs people who share the most working hours.
+
+There is also a small office for up to 12 people with 6 desks, and seasonal decor for autumn, winter and Lunar New Year.
+
+Install or update: https://apps.nextcloud.com/apps/virtualoffice
+Website: https://hweihwang.com/virtualoffice/
+What's new: https://github.com/hweihwang/virtualoffice/releases/tag/v1.1.0
+
+### Captions for the new images
+
+1. The small office in winter: Alice plays music on the record player by the sofa, and the people list shows each person's local time.
+2. Music: everyone near the record player hears the same moment.
+3. Voice: Bảo talks in the coffee corner, and Alice hears him because she stands close by.
+4. Time zones: each person's local time, with a moon for Bảo, whose day has not started yet.
+
 ## Name and brand
 
 The app name is Virtual Office. Say “for Nextcloud” where it helps. Do not suggest that it is an official Nextcloud app, and do not use the Nextcloud logo in our own graphics. The logo is [media/logo.svg](media/logo.svg): a room seen from above, two people at a table and one stepping through the door. Its colors are blue `#1596dc` to `#0b4f82`, with an apricot table `#ffb57e`. Headlines use Fraunces, text uses Source Sans 3.

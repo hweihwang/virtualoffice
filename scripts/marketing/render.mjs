@@ -30,10 +30,10 @@ function magick(from, to, ...ops) {
 function webp(from, to, width, quality = 88) {
 	run('cwebp', '-quiet', '-q', String(quality), '-alpha_q', '100', '-resize', String(width), '0', from, '-o', to)
 }
-/** A crop of the map, given in cells of the 32 × 20 office. */
-function cells(from, to, [x, y, w, h]) {
+/** A crop of the map, given in cells of the 32 × 20 office or of another layout's width. */
+function cells(from, to, [x, y, w, h], columns = 32) {
 	const [width] = size(at(from))
-	const cell = width / 32
+	const cell = width / columns
 	magick(at(from), at(to), '-crop', `${Math.round(w * cell)}x${Math.round(h * cell)}+${Math.round(x * cell)}+${Math.round(y * cell)}`, '+repage')
 }
 
@@ -44,10 +44,13 @@ magick(at('office-dark.png'), resolve(docs, 'screenshots/office-dark.png'), '-re
 magick(at('picker.png'), resolve(docs, 'screenshots/character.png'), '-resize', '2880x', '-define', 'png:compression-level=9')
 magick(at('dashboard.png'), resolve(docs, 'screenshots/dashboard.png'), '-define', 'png:compression-level=9')
 magick(at('talk.png'), resolve(docs, 'screenshots/talk.png'), '-crop', '2264x2072+616+88', '+repage', '-define', 'png:compression-level=9')
+magick(at('small-office.png'), resolve(docs, 'screenshots/small-office.png'), '-resize', '2880x', '-define', 'png:compression-level=9')
 
 // Link previews in Talk and Text show the real office.
 magick(at('stage.png'), at('preview.png'), '-resize', '960x600!')
 run('cwebp', '-quiet', '-q', '84', at('preview.png'), '-o', resolve(root, 'img/office-preview.webp'))
+magick(at('stage-compact.png'), at('preview-compact.png'), '-resize', '960x600^', '-gravity', 'center', '-extent', '960x600')
+run('cwebp', '-quiet', '-q', '84', at('preview-compact.png'), '-o', resolve(root, 'img/office-preview-compact-office-v1.webp'))
 
 // Product page: the office inside Nextcloud's rounded content area, in light and dark.
 for (const name of ['office', 'office-dark']) {
@@ -65,6 +68,17 @@ webp(at('m-coffee.png'), resolve(site, 'm-coffee.webp'), 1400)
 webp(at('m-wave.png'), resolve(site, 'm-wave.webp'), 800)
 webp(at('m-desks.png'), resolve(site, 'm-desks.webp'), 800)
 webp(at('office-phone.png'), resolve(site, 'office-phone.webp'), 1200)
+// New in 1.1, from the small office in winter.
+cells('stage-music.png', 'm-music.png', [4, 0, 8, 8], 22)
+cells('stage-voice.png', 'm-voice.png', [0, 1, 8, 8], 22)
+webp(at('m-music.png'), resolve(site, 'm-music.webp'), 800)
+webp(at('m-voice.png'), resolve(site, 'm-voice.webp'), 800)
+webp(at('times.png'), resolve(site, 'm-time.webp'), size(at('times.png'))[0])
+// The dialog without the dimmed page in its rounded corners.
+const [sw, sh] = size(at('sound.png'))
+magick(at('sound.png'), at('sound-card.png'), '(', '-size', `${sw}x${sh}`, 'xc:none', '-fill', 'white', '-draw', `roundrectangle 0,0 ${sw - 1},${sh - 1} 24,24`, ')', '-alpha', 'set', '-compose', 'DstIn', '-composite')
+webp(at('sound-card.png'), resolve(site, 'm-sound.webp'), sw)
+webp(at('stage-music.png'), resolve(site, 'small-winter.webp'), 1400)
 // Cards captured on a transparent background, with their own shadow, evenly padded.
 for (const name of ['knock', 'knock-answer', 'door']) {
 	magick(at(`${name}.png`), at(`${name}-card.png`), '-trim', '+repage', '-bordercolor', 'none', '-border', '24')
