@@ -4,7 +4,7 @@
 -->
 # Launch copy
 
-Ready-to-post text for the launch. Open every link before posting. Version 1.0.0 is available on the [Nextcloud App Store](https://apps.nextcloud.com/apps/virtualoffice).
+Ready-to-post text for the launch. Open every link before posting. Version 1.1.0 is available on the [Nextcloud App Store](https://apps.nextcloud.com/apps/virtualoffice).
 
 ## Tagline
 

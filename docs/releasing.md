@@ -6,7 +6,7 @@
 
 The release archive is a custom tarball with one top-level `virtualoffice/` directory. GitHub's automatically generated source archives do not have that layout. The app supports Nextcloud 35; do not widen the version range without testing the new version.
 
-Version 1.0.0 is published on [GitHub](https://github.com/hweihwang/virtualoffice/releases/tag/v1.0.0) and the [Nextcloud App Store](https://apps.nextcloud.com/apps/virtualoffice).
+Version 1.1.0 is published on [GitHub](https://github.com/hweihwang/virtualoffice/releases/tag/v1.1.0) and the [Nextcloud App Store](https://apps.nextcloud.com/apps/virtualoffice).
 
 ## Prepare
 
@@ -65,7 +65,7 @@ See the [App Store developer guide](https://nextcloudappstore.readthedocs.io/en/
 
 The repository is public, with the description, homepage and topics from [launch-copy.md](launch-copy.md), private vulnerability reporting for [SECURITY.md](../SECURITY.md), and GitHub Pages from the `main` branch's `/docs` folder, which now only forwards to the product page. The [social preview](media/social-preview.png) is uploaded in **Settings › General › Social preview**; upload it again if the image changes.
 
-The product page is https://hweihwang.com/virtualoffice/, in the hweihwang.com repository. To update it, copy `build/marketing/site/*` (written by `scripts/marketing/render.mjs`, including the film from `build/film/`) into its `virtualoffice/` folder, then deploy that repository. Check the page on desktop and mobile, including film playback.
+The product page is https://hweihwang.com/virtualoffice/, in the hweihwang.com repository. To update it, copy `build/marketing/site/*` (written by `scripts/marketing/render.mjs`, including the film from `build/film/`) into its `virtualoffice/` folder, run `python3 tests/product-pages.py` against `wrangler pages dev`, then deploy with `wrangler pages deploy . --project-name hweihwang --branch main`. Check the page on desktop and mobile, including film playback.
 
 The film plays on the product page. To show it in the App Store gallery, upload it to PeerTube and add its public HTTPS URL as a `<video>` element in `appinfo/info.xml` **before** packaging and signing. The App Store does not accept YouTube links in that field. If no PeerTube account is available, the five screenshots remain the gallery.
 
