@@ -6,7 +6,7 @@
 
 The release archive is a custom tarball with one top-level `virtualoffice/` directory. GitHub's automatically generated source archives do not have that layout. The app supports Nextcloud 35; do not widen the version range without testing the new version.
 
-Version 1.1.0 is published on [GitHub](https://github.com/hweihwang/virtualoffice/releases/tag/v1.1.0) and the [Nextcloud App Store](https://apps.nextcloud.com/apps/virtualoffice).
+Version 1.1.1 is published on [GitHub](https://github.com/hweihwang/virtualoffice/releases/tag/v1.1.1) and the [Nextcloud App Store](https://apps.nextcloud.com/apps/virtualoffice).
 
 ## Prepare
 
