@@ -4,6 +4,11 @@
 -->
 # Changelog
 
+## 1.1.1
+
+- A new app icon: a white V on a dark tile on the website and in the README, and a V glyph in the app menu, the Dashboard, notifications, search and the admin settings
+- Shorter, plainer App Store description, README and product page
+
 ## 1.1.0
 
 Offices
